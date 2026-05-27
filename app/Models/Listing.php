@@ -70,4 +70,29 @@ class Listing extends Model
     {
         return $this->hasMany(Bid::class);
     }
+
+    public function watchlists(): HasMany
+    {
+        return $this->hasMany(Watchlist::class);
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(Report::class);
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public function autoBids(): HasMany
+    {
+        return $this->hasMany(AutoBid::class);
+    }
 }
