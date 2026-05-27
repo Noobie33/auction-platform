@@ -51,4 +51,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Listing::class, 'seller_id');
     }
+    
+    public function bids(): HasMany
+    {
+        return $this->hasMany(Bid::class, 'buyer_id');
+    }
 }
