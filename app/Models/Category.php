@@ -29,4 +29,9 @@ class Category extends Model
     {
         return $this->hasMany(Category::class, 'parent_id');
     }
+
+    public function listings(): HasMany
+    {
+        return $this->hasMany(Listing::class);
+    }
 }
