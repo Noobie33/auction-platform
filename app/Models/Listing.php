@@ -65,4 +65,9 @@ class Listing extends Model
     {
         return $this->hasMany(ListingImage::class);
     }
+    
+    public function bids(): HasMany
+    {
+        return $this->hasMany(Bid::class);
+    }
 }
