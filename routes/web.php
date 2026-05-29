@@ -1,39 +1,34 @@
 <?php
 
-use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Seller\SellerDashboardController;
+use App\Http\Controllers\Bidder\BidderDashboardController;
+use App\Http\Controllers\Staff\StaffDashboardController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-// ── Dashboard smart redirect ───────────────────────────────────────────────────
-// Requires both 'auth' (must be logged in) and 'check.account.status'
-// (account must be active). Spatie role check happens inside the controller.
-
 Route::middleware(['auth', 'check.account.status'])->group(function () {
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // ── Temporary role dashboard stubs ────────────────────────────────────────
-    // These exist only so DashboardController redirects resolve without error.
-    // Replace each one when the real role dashboard controller is built.
+    Route::get('/admin/dashboard', AdminDashboardController::class)
+        ->middleware('role:admin')
+        ->name('admin.dashboard');
 
-    Route::get('/admin/dashboard', function () {
-        return 'Admin dashboard — coming soon.';
-    })->name('admin.dashboard');
+    Route::get('/seller/dashboard', SellerDashboardController::class)
+        ->middleware('role:seller')
+        ->name('seller.dashboard');
 
-    Route::get('/seller/dashboard', function () {
-        return 'Seller dashboard — coming soon.';
-    })->name('seller.dashboard');
+    Route::get('/bidder/dashboard', BidderDashboardController::class)
+        ->middleware('role:bidder')
+        ->name('bidder.dashboard');
 
-    Route::get('/bidder/dashboard', function () {
-        return 'Bidder dashboard — coming soon.';
-    })->name('bidder.dashboard');
-
-    Route::get('/staff/dashboard', function () {
-        return 'Staff dashboard — coming soon.';
-    })->name('staff.dashboard');
+    Route::get('/staff/dashboard', StaffDashboardController::class)
+        ->middleware('role:staff')
+        ->name('staff.dashboard');
 
 });
