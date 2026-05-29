@@ -5,9 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Notification extends Model
+class UserNotification extends Model
 {
     protected $table = 'user_notifications';
+
     protected $fillable = [
         'user_id',
         'type',
@@ -18,7 +19,7 @@ class Notification extends Model
     ];
 
     protected $casts = [
-        'data' => 'array',
+        'data'    => 'array',
         'read_at' => 'datetime',
     ];
 
