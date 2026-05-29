@@ -72,6 +72,12 @@ class RegisterController extends Controller
         // Registration also logs the user in, so the same rule applies.
         $user->update(['last_login_at' => now()]);
 
+        // Send the email verification notification.
+        // The User model implements MustVerifyEmail, which provides this method.
+        // Laravel sends a signed verification URL to the user's email address.
+        // The user must click the link before they can access verified routes.
+        $user->sendEmailVerificationNotification();
+
         // Step 6: Redirect to dashboard.
         // No redirect()->intended() here — a brand new user has no prior
         // intended URL stored in their session, so intended() would always
