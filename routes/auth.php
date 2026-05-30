@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\VerificationController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,24 @@ Route::middleware('guest')->group(function () {
 
     Route::post('/register', [RegisterController::class, 'store'])
         ->name('register.store');
+    
+    // ── Password reset ───────────────────────────────────────────────────────
+    // All four routes are guest-only. The user is not authenticated when
+    // they need to reset their password. After a successful reset the
+    // controller calls Auth::login() and redirects to /dashboard, at
+    // which point the guest middleware no longer applies.
+
+    Route::get('/forgot-password', [PasswordResetController::class, 'request'])
+        ->name('password.request');
+
+    Route::post('/forgot-password', [PasswordResetController::class, 'email'])
+        ->name('password.email');
+
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'reset'])
+        ->name('password.reset');
+
+    Route::post('/reset-password', [PasswordResetController::class, 'update'])
+        ->name('password.update');
 });
 
 // ── Authenticated-only routes ─────────────────────────────────────────────────
