@@ -6,6 +6,8 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Seller\SellerDashboardController;
 use App\Http\Controllers\Bidder\BidderDashboardController;
 use App\Http\Controllers\Staff\StaffDashboardController;
+use App\Http\Controllers\Profile\ProfileController;
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -30,5 +32,9 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
     Route::get('/staff/dashboard', StaffDashboardController::class)
         ->middleware('role:staff')
         ->name('staff.dashboard');
+
+    // ── Profile ───────────────────────────────────────────────────────────────
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
 });
