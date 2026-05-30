@@ -23,7 +23,10 @@ class AuthRoleDashboardTest extends TestCase
 
     private function makeUser(string $role, array $overrides = []): User
     {
-        $attributes = array_merge(['status' => 'active'], $overrides);
+        $attributes = array_merge([
+            'status' => 'active', 
+            'email_verified_at' => now(),
+            ], $overrides);
         $user = User::factory()->create($attributes);
         $user->assignRole($role);
         return $user;
