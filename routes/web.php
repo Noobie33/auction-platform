@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Seller\SellerApplicationController;
 use App\Http\Controllers\Seller\SellerDashboardController;
 use App\Http\Controllers\Bidder\BidderDashboardController;
@@ -18,18 +19,26 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // ── Admin ─────────────────────────────────────────────────────────────────
     Route::get('/admin/dashboard', AdminDashboardController::class)
         ->middleware('role:admin')
         ->name('admin.dashboard');
 
+    Route::get('/admin/users', [UserManagementController::class, 'index'])
+        ->middleware('role:admin')
+        ->name('admin.users.index');
+
+    // ── Seller ────────────────────────────────────────────────────────────────
     Route::get('/seller/dashboard', SellerDashboardController::class)
         ->middleware('role:seller')
         ->name('seller.dashboard');
 
+     // ── Bidder ────────────────────────────────────────────────────────────────
     Route::get('/bidder/dashboard', BidderDashboardController::class)
         ->middleware('role:bidder')
         ->name('bidder.dashboard');
 
+    // ── Staff ─────────────────────────────────────────────────────────────────
     Route::get('/staff/dashboard', StaffDashboardController::class)
         ->middleware('role:staff')
         ->name('staff.dashboard');
