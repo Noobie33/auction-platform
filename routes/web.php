@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Admin\SellerApplicationManagementController;
 use App\Http\Controllers\Seller\SellerApplicationController;
 use App\Http\Controllers\Seller\SellerDashboardController;
 use App\Http\Controllers\Bidder\BidderDashboardController;
@@ -31,6 +32,10 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
     Route::patch('/admin/users/{user}/status', [UserManagementController::class, 'updateStatus'])
         ->middleware('role:admin')
         ->name('admin.users.status.update');
+
+     Route::get('/admin/seller-applications', [SellerApplicationManagementController::class, 'index'])
+        ->middleware('role:admin')
+        ->name('admin.seller-applications.index');
 
     // ── Seller ────────────────────────────────────────────────────────────────
     Route::get('/seller/dashboard', SellerDashboardController::class)
