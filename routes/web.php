@@ -37,6 +37,15 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:admin')
         ->name('admin.seller-applications.index');
 
+    Route::post('admin/seller-applications/{sellerRequest}/approve', [SellerApplicationManagementController::class, 'approve'])
+        ->name('admin.seller-applications.approve')
+        ->middleware('role:admin');
+
+    Route::post('admin/seller-applications/{sellerRequest}/reject', [SellerApplicationManagementController::class, 'reject'])
+        ->name('admin.seller-applications.reject')
+        ->middleware('role:admin');
+
+
     // ── Seller ────────────────────────────────────────────────────────────────
     Route::get('/seller/dashboard', SellerDashboardController::class)
         ->middleware('role:seller')

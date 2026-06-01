@@ -3,189 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seller Applications</title>
+    <title>Seller Applications | Admin</title>
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: sans-serif; max-width: 1100px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; }
-        h1 { font-size: 1.5rem; margin-bottom: 4px; }
-        .subtitle { color: #555; margin: 0 0 24px; font-size: 0.95rem; }
-        .back-link { font-size: 0.88rem; color: #555; text-decoration: none; display: inline-block; margin-bottom: 24px; }
-        .back-link:hover { color: #1a1a1a; text-decoration: underline; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; font-size: 14px; }
+        .page { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+        h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 1.5rem; }
+
+        /* Flash messages */
+        .alert { padding: .75rem 1rem; border-radius: 4px; margin-bottom: 1rem; font-size: .9rem; }
+        .alert-success { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; }
+        .alert-error   { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
 
         /* Filter tabs */
-        .filters { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; }
-        .filters a {
-            padding: 6px 16px; border: 1px solid #e5e7eb; border-radius: 99px;
-            font-size: 0.85rem; text-decoration: none; color: #374151; transition: background 0.1s;
-        }
-        .filters a:hover { background: #f9fafb; }
-        .filters a.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-
-        /* Meta */
-        .meta { font-size: 0.85rem; color: #6b7280; margin-bottom: 16px; }
+        .tabs { display: flex; gap: .25rem; margin-bottom: 1.25rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; }
+        .tab  { padding: .45rem .9rem; border-radius: 4px 4px 0 0; text-decoration: none;
+                color: #555; border: 1px solid transparent; border-bottom: none; font-size: .875rem; }
+        .tab:hover  { background: #f0f0f0; }
+        .tab.active { background: #fff; border-color: #e5e7eb; color: #111; font-weight: 600;
+                      margin-bottom: -2px; border-bottom: 2px solid #fff; }
 
         /* Table */
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        thead tr { border-bottom: 2px solid #e5e7eb; }
-        th { text-align: left; padding: 10px 12px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; font-weight: 600; }
-        tbody tr { border-bottom: 1px solid #f3f4f6; }
-        tbody tr:hover { background: #fafafa; }
-        td { padding: 12px 12px; vertical-align: top; }
-        .applicant-name { font-weight: 600; }
-        .applicant-email { color: #6b7280; font-size: 0.85rem; margin-top: 2px; }
-        .motivation-preview { color: #374151; font-size: 0.85rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .date { font-size: 0.85rem; color: #6b7280; white-space: nowrap; }
-        .reviewer-info { font-size: 0.85rem; color: #374151; }
-        .reviewer-name { font-weight: 600; }
-        .reviewer-date { color: #6b7280; margin-top: 2px; }
-        .no-reviewer { color: #9ca3af; font-size: 0.85rem; }
-        .admin-note { font-size: 0.82rem; color: #6b7280; margin-top: 4px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .empty { text-align: center; padding: 48px 0; color: #9ca3af; font-size: 0.95rem; }
+        .card  { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; }
+        table  { width: 100%; border-collapse: collapse; }
+        thead  { background: #f9fafb; }
+        th, td { padding: .6rem .85rem; text-align: left; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+        th     { font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafafa; }
+        .empty-row td { text-align: center; padding: 2rem; color: #9ca3af; }
 
-        /* Badges */
-        .badge {
-            display: inline-block; font-size: 0.72rem; font-weight: 600;
-            padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.04em;
-        }
+        /* Status badges */
+        .badge         { display: inline-block; padding: .15rem .55rem; border-radius: 9999px;
+                         font-size: .75rem; font-weight: 600; text-transform: capitalize; }
         .badge-pending  { background: #fef3c7; color: #92400e; }
-        .badge-approved { background: #dcfce7; color: #166534; }
+        .badge-approved { background: #d1fae5; color: #065f46; }
         .badge-rejected { background: #fee2e2; color: #991b1b; }
 
+        /* Action forms */
+        .actions { display: flex; flex-direction: column; gap: .5rem; }
+        .btn { display: inline-block; padding: .3rem .75rem; border: none; border-radius: 4px;
+               font-size: .8rem; font-weight: 600; cursor: pointer; }
+        .btn-approve { background: #059669; color: #fff; }
+        .btn-approve:hover { background: #047857; }
+        .btn-reject  { background: #dc2626; color: #fff; }
+        .btn-reject:hover  { background: #b91c1c; }
+        .no-action { color: #9ca3af; font-size: .8rem; }
+
+        /* Reject details/form */
+        details { margin-top: .25rem; }
+        summary { cursor: pointer; font-size: .8rem; font-weight: 600; color: #dc2626;
+                  list-style: none; display: inline-block; padding: .3rem .75rem;
+                  background: #fee2e2; border-radius: 4px; }
+        summary::-webkit-details-marker { display: none; }
+        summary:hover { background: #fecaca; }
+        .reject-form { margin-top: .5rem; display: flex; flex-direction: column; gap: .4rem; }
+        .reject-form textarea { width: 100%; min-width: 220px; padding: .4rem .6rem;
+                                border: 1px solid #d1d5db; border-radius: 4px; font-size: .8rem;
+                                resize: vertical; min-height: 60px; font-family: inherit; }
+        .reject-form textarea:focus { outline: 2px solid #dc2626; border-color: transparent; }
+        .error-msg { color: #dc2626; font-size: .75rem; }
+
         /* Pagination */
-        .pagination { display: flex; gap: 6px; margin-top: 28px; flex-wrap: wrap; align-items: center; }
-        .pagination a, .pagination span {
-            padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px;
-            font-size: 0.85rem; text-decoration: none; color: #374151;
-        }
-        .pagination a:hover { background: #f9fafb; }
-        .pagination span.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-        .pagination span.disabled { color: #d1d5db; }
+        .pagination { margin-top: 1.25rem; display: flex; gap: .25rem; }
+        .pagination a, .pagination span { padding: .35rem .65rem; border-radius: 4px;
+            border: 1px solid #e5e7eb; font-size: .8rem; text-decoration: none; color: #374151; }
+        .pagination a:hover { background: #f3f4f6; }
+        .pagination .active span { background: #111; color: #fff; border-color: #111; }
     </style>
 </head>
 <body>
-
-    <a class="back-link" href="{{ route('admin.dashboard') }}">← Back to Admin Dashboard</a>
+<div class="page">
 
     <h1>Seller Applications</h1>
-    <p class="subtitle">Review and manage seller applications submitted by bidders.</p>
 
-    {{-- Filter tabs --}}
-    <div class="filters">
-        <a href="{{ route('admin.seller-applications.index', ['filter' => 'pending']) }}"
-           class="{{ $filter === 'pending' ? 'active' : '' }}">
-            Pending
-        </a>
-        <a href="{{ route('admin.seller-applications.index', ['filter' => 'approved']) }}"
-           class="{{ $filter === 'approved' ? 'active' : '' }}">
-            Approved
-        </a>
-        <a href="{{ route('admin.seller-applications.index', ['filter' => 'rejected']) }}"
-           class="{{ $filter === 'rejected' ? 'active' : '' }}">
-            Rejected
-        </a>
-        <a href="{{ route('admin.seller-applications.index', ['filter' => 'all']) }}"
-           class="{{ $filter === 'all' ? 'active' : '' }}">
-            All
-        </a>
-    </div>
-
-    @if ($applications->total() > 0)
-        <p class="meta">
-            Showing {{ $applications->firstItem() }}–{{ $applications->lastItem() }}
-            of {{ $applications->total() }}
-            {{ $filter !== 'all' ? $filter : '' }} application{{ $applications->total() !== 1 ? 's' : '' }}.
-        </p>
+    {{-- Flash messages --}}
+    @if (session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
-    <table>
-        <thead>
-            <tr>
-                <th>Applicant</th>
-                <th>Motivation</th>
-                <th>Status</th>
-                <th>Submitted</th>
-                <th>Reviewed by</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($applications as $application)
-                <tr>
-                    <td>
-                        <div class="applicant-name">
-                            {{ $application->user->name ?? '—' }}
-                        </div>
-                        <div class="applicant-email">
-                            {{ $application->user->email ?? '—' }}
-                        </div>
-                    </td>
-                    <td>
-                        <div class="motivation-preview" title="{{ $application->motivation }}">
-                            {{ $application->motivation }}
-                        </div>
-                    </td>
-                    <td>
-                        @if ($application->status === 'pending')
-                            <span class="badge badge-pending">Pending</span>
-                        @elseif ($application->status === 'approved')
-                            <span class="badge badge-approved">Approved</span>
-                        @else
-                            <span class="badge badge-rejected">Rejected</span>
-                        @endif
-                    </td>
-                    <td class="date">
-                        {{ $application->created_at->format('d M Y') }}
-                    </td>
-                    <td>
-                        @if ($application->reviewer)
-                            <div class="reviewer-info">
-                                <div class="reviewer-name">{{ $application->reviewer->name }}</div>
-                                <div class="reviewer-date">
-                                    {{ $application->reviewed_at?->format('d M Y') }}
-                                </div>
-                                @if ($application->admin_note)
-                                    <div class="admin-note" title="{{ $application->admin_note }}">
-                                        Note: {{ $application->admin_note }}
-                                    </div>
-                                @endif
-                            </div>
-                        @else
-                            <span class="no-reviewer">—</span>
-                        @endif
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="5" class="empty">
-                        No {{ $filter !== 'all' ? $filter : '' }} applications found.
-                    </td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
-
-    @if ($applications->hasPages())
-        <div class="pagination">
-            @if ($applications->onFirstPage())
-                <span class="disabled">← Prev</span>
-            @else
-                <a href="{{ $applications->previousPageUrl() }}">← Prev</a>
-            @endif
-
-            @foreach ($applications->getUrlRange(1, $applications->lastPage()) as $page => $url)
-                @if ($page == $applications->currentPage())
-                    <span class="active">{{ $page }}</span>
-                @else
-                    <a href="{{ $url }}">{{ $page }}</a>
-                @endif
+    @if ($errors->any())
+        <div class="alert alert-error">
+            @foreach ($errors->all() as $error)
+                <div>{{ $error }}</div>
             @endforeach
-
-            @if ($applications->hasMorePages())
-                <a href="{{ $applications->nextPageUrl() }}">Next →</a>
-            @else
-                <span class="disabled">Next →</span>
-            @endif
         </div>
     @endif
 
+    {{-- Filter tabs --}}
+    <nav class="tabs">
+        @foreach (['all' => 'All', 'pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $value => $label)
+            <a href="{{ route('admin.seller-applications.index', ['filter' => $value]) }}"
+               class="tab {{ $filter === $value ? 'active' : '' }}">
+                {{ $label }}
+            </a>
+        @endforeach
+    </nav>
+
+    {{-- Applications table --}}
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                    <th>Reviewed At</th>
+                    <th>Admin Note</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($applications as $application)
+                    <tr>
+                        <td>{{ $application->id }}</td>
+                        <td>{{ $application->user->name ?? '—' }}</td>
+                        <td>{{ $application->user->email ?? '—' }}</td>
+                        <td>
+                            <span class="badge badge-{{ $application->status }}">
+                                {{ ucfirst($application->status) }}
+                            </span>
+                        </td>
+                        <td>{{ $application->created_at->format('Y-m-d H:i') }}</td>
+                        <td>{{ $application->reviewed_at?->format('Y-m-d H:i') ?? '—' }}</td>
+                        <td>{{ $application->admin_note ?? '—' }}</td>
+                        <td>
+                            @if ($application->status === 'pending')
+                                <div class="actions">
+
+                                    {{-- Approve --}}
+                                    <form method="POST"
+                                          action="{{ route('admin.seller-applications.approve', $application) }}"
+                                          onsubmit="return confirm('Approve application #{{ $application->id }}?')">
+                                        @csrf
+                                        <button type="submit" class="btn btn-approve">Approve</button>
+                                    </form>
+
+                                    {{-- Reject (inline, no JS modal) --}}
+                                    <details>
+                                        <summary>Reject</summary>
+                                        <form method="POST"
+                                              action="{{ route('admin.seller-applications.reject', $application) }}"
+                                              class="reject-form">
+                                            @csrf
+                                            <textarea
+                                                name="admin_note"
+                                                placeholder="Reason for rejection (required)…"
+                                                maxlength="1000"
+                                                required>{{ old('admin_note') }}</textarea>
+                                            @error('admin_note')
+                                                <span class="error-msg">{{ $message }}</span>
+                                            @enderror
+                                            <div>
+                                                <button type="submit" class="btn btn-reject">Confirm Reject</button>
+                                            </div>
+                                        </form>
+                                    </details>
+
+                                </div>
+                            @else
+                                <span class="no-action">—</span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr class="empty-row">
+                        <td colspan="8">No {{ $filter !== 'all' ? $filter : '' }} applications found.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    {{-- Pagination --}}
+    <div class="pagination">
+        {{ $applications->links() }}
+    </div>
+
+</div>
 </body>
 </html>

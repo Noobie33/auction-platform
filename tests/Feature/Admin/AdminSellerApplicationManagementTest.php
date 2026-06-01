@@ -208,4 +208,274 @@ class AdminSellerApplicationManagementTest extends TestCase
             ->assertSee($bidder->name)
             ->assertSee($bidder->email);
     }
+
+    // =========================================================
+    // Phase 5.4 — Approve / Reject
+    // =========================================================
+
+    // ── helpers ───────────────────────────────────────────────
+
+    private function createAdmin(): User
+    {
+        return $this->makeUser('admin');
+    }
+
+    private function createBidderWithPendingApplication(): array
+    {
+        $applicant = $this->makeUser('bidder');
+
+        $application = SellerRequest::create([
+            'user_id'    => $applicant->id,
+            'motivation' => 'I have several years of experience selling products online and want to become a verified seller on this platform.',
+            'status'     => 'pending',
+        ]);
+
+        return [$applicant, $application];
+    }
+
+    // ── approve: happy path ───────────────────────────────────
+
+    
+    public function test_admin_can_approve_a_pending_application(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.approve', $application))
+            ->assertRedirect(route('admin.seller-applications.index'))
+            ->assertSessionHas('success');
+
+        $this->assertSame('approved', $application->fresh()->status);
+    }
+
+  
+    public function test_approve_assigns_seller_role_to_applicant(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.approve', $application));
+
+        $this->assertTrue($applicant->fresh()->hasRole('seller'));
+    }
+
+    
+    public function test_approve_removes_bidder_role_from_applicant(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.approve', $application));
+
+        $this->assertFalse($applicant->fresh()->hasRole('bidder'));
+    }
+
+    
+    public function test_approve_stores_reviewed_by_and_reviewed_at(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin)
+            ->post(route('admin.seller-applications.approve', $application));
+
+        $fresh = $application->fresh();
+
+        $this->assertSame($admin->id, $fresh->reviewed_by);
+        $this->assertNotNull($fresh->reviewed_at);
+    }
+
+    // ── reject: happy path ────────────────────────────────────
+
+   
+    public function test_admin_can_reject_a_pending_application_with_admin_note(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.reject', $application), [
+                'admin_note' => 'Insufficient supporting documents.',
+            ])
+            ->assertRedirect(route('admin.seller-applications.index'))
+            ->assertSessionHas('success');
+
+        $this->assertSame('rejected', $application->fresh()->status);
+    }
+
+   
+    public function test_reject_keeps_bidder_role_and_does_not_assign_seller(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.reject', $application), [
+                'admin_note' => 'Does not meet requirements.',
+            ]);
+
+        $fresh = $applicant->fresh();
+
+        $this->assertTrue($fresh->hasRole('bidder'));
+        $this->assertFalse($fresh->hasRole('seller'));
+    }
+
+
+    public function test_reject_stores_admin_note_reviewed_by_and_reviewed_at(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin)
+            ->post(route('admin.seller-applications.reject', $application), [
+                'admin_note' => 'Missing valid ID.',
+            ]);
+
+        $fresh = $application->fresh();
+
+        $this->assertSame('Missing valid ID.', $fresh->admin_note);
+        $this->assertSame($admin->id, $fresh->reviewed_by);
+        $this->assertNotNull($fresh->reviewed_at);
+    }
+
+    // ── guard: non-pending applications ──────────────────────
+
+  
+    public function test_cannot_approve_an_already_approved_application(): void
+    {
+        $applicant = $this->makeUser('bidder');
+        $application = SellerRequest::create([
+            'user_id' => $applicant->id,
+            'motivation' => 'I have several years of experience selling products online and want to become a verified seller on this platform.',
+            'status'  => 'approved',
+        ]);
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.approve', $application))
+            ->assertStatus(422);
+    }
+
+    
+    public function test_cannot_approve_an_already_rejected_application(): void
+    {
+        $applicant = $this->makeUser('bidder');
+        $application = SellerRequest::create([
+            'user_id' => $applicant->id,
+            'motivation' => 'I have several years of experience selling products online and want to become a verified seller on this platform.',
+            'status'  => 'rejected',
+        ]);
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.approve', $application))
+            ->assertStatus(422);
+    }
+
+
+    public function test_cannot_reject_an_already_approved_application(): void
+    {
+        $applicant = $this->makeUser('bidder');
+        $application = SellerRequest::create([
+            'user_id' => $applicant->id,
+            'motivation' => 'I have several years of experience selling products online and want to become a verified seller on this platform.',
+            'status'  => 'approved',
+        ]);
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.reject', $application), [
+                'admin_note' => 'Late rejection.',
+            ])
+            ->assertStatus(422);
+    }
+
+   
+    public function test_cannot_reject_an_already_rejected_application(): void
+    {
+        $applicant = $this->makeUser('bidder');
+        $application = SellerRequest::create([
+            'user_id' => $applicant->id,
+            'motivation' => 'I have several years of experience selling products online and want to become a verified seller on this platform.',
+            'status'  => 'rejected',
+        ]);
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.reject', $application), [
+                'admin_note' => 'Duplicate rejection.',
+            ])
+            ->assertStatus(422);
+    }
+
+    // ── guard: authorisation ──────────────────────────────────
+
+    
+    public function test_non_admin_cannot_approve_an_application(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $nonAdmin = $this->makeUser('bidder');
+
+        $this->actingAs($nonAdmin)
+            ->post(route('admin.seller-applications.approve', $application))
+            ->assertForbidden();
+    }
+
+   
+    public function test_non_admin_cannot_reject_an_application(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $nonAdmin = $this->makeUser('bidder');
+
+        $this->actingAs($nonAdmin)
+            ->post(route('admin.seller-applications.reject', $application), [
+                'admin_note' => 'Attempted by non-admin.',
+            ])
+            ->assertForbidden();
+    }
+
+    
+    public function test_guest_is_redirected_to_login_when_approving(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->post(route('admin.seller-applications.approve', $application))
+            ->assertRedirect(route('login'));
+    }
+
+  
+    public function test_guest_is_redirected_to_login_when_rejecting(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->post(route('admin.seller-applications.reject', $application), [
+            'admin_note' => 'Guest reject attempt.',
+        ])->assertRedirect(route('login'));
+    }
+
+    // ── validation ────────────────────────────────────────────
+
+   
+    public function test_reject_requires_admin_note(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.reject', $application), [
+                'admin_note' => '',
+            ])
+            ->assertSessionHasErrors('admin_note');
+
+        $this->assertSame('pending', $application->fresh()->status);
+    }
+
+    
+    public function test_reject_admin_note_must_not_exceed_1000_characters(): void
+    {
+        [$applicant, $application] = $this->createBidderWithPendingApplication();
+
+        $this->actingAs($this->createAdmin())
+            ->post(route('admin.seller-applications.reject', $application), [
+                'admin_note' => str_repeat('x', 1001),
+            ])
+            ->assertSessionHasErrors('admin_note');
+
+        $this->assertSame('pending', $application->fresh()->status);
+    }
 }
