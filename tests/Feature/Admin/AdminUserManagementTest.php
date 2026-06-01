@@ -34,7 +34,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Guest access
+    // Guest access — user list
     // -------------------------------------------------------------------------
 
     public function test_guest_is_redirected_from_user_list_to_login(): void
@@ -44,7 +44,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Unverified admin
+    // Unverified admin — user list
     // -------------------------------------------------------------------------
 
     public function test_unverified_admin_is_redirected_to_verification_notice(): void
@@ -57,7 +57,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Non-admin access
+    // Non-admin access — user list
     // -------------------------------------------------------------------------
 
     public function test_non_admin_verified_user_cannot_access_user_list(): void
@@ -70,7 +70,7 @@ class AdminUserManagementTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Admin access
+    // Admin access — user list
     // -------------------------------------------------------------------------
 
     public function test_admin_can_view_user_list(): void
@@ -107,5 +107,113 @@ class AdminUserManagementTest extends TestCase
             ->get('/admin/users')
             ->assertOk()
             ->assertSee('seller');
+    }
+
+    // =========================================================================
+    // Status update — guest and access control
+    // =========================================================================
+
+    public function test_guest_is_redirected_from_status_update_to_login(): void
+    {
+        $bidder = $this->makeUser('bidder');
+
+        $this->patch("/admin/users/{$bidder->id}/status", ['status' => 'suspended'])
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_non_admin_cannot_update_user_status(): void
+    {
+        $bidder = $this->makeUser('bidder');
+        $target = $this->makeUser('bidder');
+
+        $this->actingAs($bidder)
+            ->patch("/admin/users/{$target->id}/status", ['status' => 'suspended'])
+            ->assertStatus(403);
+    }
+
+    // =========================================================================
+    // Status update — valid actions
+    // =========================================================================
+
+    public function test_admin_can_suspend_a_user(): void
+    {
+        $admin  = $this->makeUser('admin');
+        $bidder = $this->makeUser('bidder');
+
+        $this->actingAs($admin)
+            ->patch("/admin/users/{$bidder->id}/status", ['status' => 'suspended'])
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'id'     => $bidder->id,
+            'status' => 'suspended',
+        ]);
+    }
+
+    public function test_admin_can_ban_a_user(): void
+    {
+        $admin  = $this->makeUser('admin');
+        $bidder = $this->makeUser('bidder');
+
+        $this->actingAs($admin)
+            ->patch("/admin/users/{$bidder->id}/status", ['status' => 'banned'])
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'id'     => $bidder->id,
+            'status' => 'banned',
+        ]);
+    }
+
+    public function test_admin_can_reactivate_a_suspended_user(): void
+    {
+        $admin  = $this->makeUser('admin');
+        $bidder = $this->makeUser('bidder', ['status' => 'suspended']);
+
+        $this->actingAs($admin)
+            ->patch("/admin/users/{$bidder->id}/status", ['status' => 'active'])
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'id'     => $bidder->id,
+            'status' => 'active',
+        ]);
+    }
+
+    // =========================================================================
+    // Status update — guards
+    // =========================================================================
+
+    public function test_admin_cannot_update_their_own_status(): void
+    {
+        $admin = $this->makeUser('admin');
+
+        $this->actingAs($admin)
+            ->patch("/admin/users/{$admin->id}/status", ['status' => 'suspended'])
+            ->assertStatus(403);
+    }
+
+    public function test_admin_cannot_update_another_admin_status(): void
+    {
+        $admin       = $this->makeUser('admin');
+        $otherAdmin  = $this->makeUser('admin');
+
+        $this->actingAs($admin)
+            ->patch("/admin/users/{$otherAdmin->id}/status", ['status' => 'suspended'])
+            ->assertStatus(403);
+    }
+
+    // =========================================================================
+    // Status update — validation
+    // =========================================================================
+
+    public function test_invalid_status_value_is_rejected(): void
+    {
+        $admin  = $this->makeUser('admin');
+        $bidder = $this->makeUser('bidder');
+
+        $this->actingAs($admin)
+            ->patch("/admin/users/{$bidder->id}/status", ['status' => 'deleted'])
+            ->assertSessionHasErrors('status');
     }
 }

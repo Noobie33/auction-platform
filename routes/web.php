@@ -28,6 +28,10 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:admin')
         ->name('admin.users.index');
 
+    Route::patch('/admin/users/{user}/status', [UserManagementController::class, 'updateStatus'])
+        ->middleware('role:admin')
+        ->name('admin.users.status.update');
+
     // ── Seller ────────────────────────────────────────────────────────────────
     Route::get('/seller/dashboard', SellerDashboardController::class)
         ->middleware('role:seller')
