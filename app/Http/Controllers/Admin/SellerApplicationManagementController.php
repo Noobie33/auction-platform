@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class SellerApplicationManagementController extends Controller
 {
@@ -43,7 +44,6 @@ class SellerApplicationManagementController extends Controller
         ]);
     }
 
-
     public function approve(Request $request, SellerRequest $sellerRequest): RedirectResponse
     {
         abort_unless(
@@ -52,21 +52,24 @@ class SellerApplicationManagementController extends Controller
             'Only pending applications can be approved.'
         );
 
-        $sellerRequest->update([
-            'status'      => 'approved',
-            'reviewed_by' => Auth::id(),
-            'reviewed_at' => now(),
-        ]);
+        DB::transaction(function () use ($sellerRequest) {
+            $sellerRequest->update([
+                'status'      => 'approved',
+                'reviewed_by' => Auth::id(),
+                'reviewed_at' => now(),
+            ]);
 
-        $user = $sellerRequest->user;
-        $user->assignRole('seller');
-        $user->removeRole('bidder');
+            $user = $sellerRequest->user;
+            $user->assignRole('seller');
+            $user->removeRole('bidder');
+        });
 
         return redirect()
             ->route('admin.seller-applications.index')
             ->with('success', 'Application approved. Seller role assigned.');
     }
 
+ 
     public function reject(Request $request, SellerRequest $sellerRequest): RedirectResponse
     {
         abort_unless(
@@ -79,12 +82,14 @@ class SellerApplicationManagementController extends Controller
             'admin_note' => ['required', 'string', 'max:1000'],
         ]);
 
-        $sellerRequest->update([
-            'status'      => 'rejected',
-            'admin_note'  => $validated['admin_note'],
-            'reviewed_by' => Auth::id(),
-            'reviewed_at' => now(),
-        ]);
+        DB::transaction(function () use ($sellerRequest, $validated) {
+            $sellerRequest->update([
+                'status'      => 'rejected',
+                'admin_note'  => $validated['admin_note'],
+                'reviewed_by' => Auth::id(),
+                'reviewed_at' => now(),
+            ]);
+        });
 
         return redirect()
             ->route('admin.seller-applications.index')
