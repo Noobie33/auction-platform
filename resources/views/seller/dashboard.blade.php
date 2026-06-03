@@ -12,6 +12,12 @@
         form { margin-top: 32px; }
         button { background: #dc2626; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
         button:hover { background: #b91c1c; }
+        nav { display: flex; flex-direction: column; gap: 10px; margin: 24px 0; }
+        nav a { display: block; padding: 10px 16px; border: 1px solid #e5e7eb; border-radius: 6px; text-decoration: none; color: #1a1a1a; }
+        nav a:hover { background: #f9fafb; }
+        .nav-label { font-weight: 600; font-size: 0.95rem; }
+        .nav-hint { display: block; font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+        .divider { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 28px; }
     </style>
 </head>
 <body>
@@ -19,6 +25,14 @@
     <h1>Welcome, {{ auth()->user()->name }}</h1>
     <p>Your seller dashboard is ready. Listing and auction tools will be added in a later phase.</p>
 
+    <nav>
+        <a href="{{ route('seller.listings.index') }}">
+            <span class="nav-label">My Listings</span>
+            <span class="nav-hint">View and manage your auction listings.</span>
+        </a>
+    </nav>
+
+    <hr class="divider">
     <form method="POST" action="{{ route('logout') }}">
         @csrf
         <button type="submit">Log Out</button>

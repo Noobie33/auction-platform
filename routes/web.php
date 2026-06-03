@@ -11,6 +11,7 @@ use App\Http\Controllers\Bidder\BidderDashboardController;
 use App\Http\Controllers\Staff\StaffDashboardController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Seller\ListingController;
 
 
 Route::get('/', function () {
@@ -78,6 +79,10 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
     Route::get('/seller/dashboard', SellerDashboardController::class)
         ->middleware('role:seller')
         ->name('seller.dashboard');
+    
+    Route::get('/seller/listings', [ListingController::class, 'index'])
+        ->middleware('role:seller')
+        ->name('seller.listings.index');
 
      // ── Bidder ────────────────────────────────────────────────────────────────
     Route::get('/bidder/dashboard', BidderDashboardController::class)
