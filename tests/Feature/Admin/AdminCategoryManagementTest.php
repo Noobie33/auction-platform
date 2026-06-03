@@ -265,4 +265,134 @@ class AdminCategoryManagementTest extends TestCase
             ])
             ->assertSessionHasErrors('parent_id');
     }
+
+    // ── Edit: access control ───────────────────────────────────────────────────
+
+    public function test_admin_can_view_edit_category_page(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('admin.categories.edit', $this->parentCategory))
+            ->assertOk();
+    }
+
+    public function test_guest_is_redirected_from_edit_category_page(): void
+    {
+        $this->get(route('admin.categories.edit', $this->parentCategory))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_non_admin_cannot_view_edit_category_page(): void
+    {
+        $this->actingAs($this->bidder)
+            ->get(route('admin.categories.edit', $this->parentCategory))
+            ->assertForbidden();
+    }
+
+    // ── Update: successful update ──────────────────────────────────────────────
+
+    public function test_admin_can_update_category_name_description_and_status(): void
+    {
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.update', $this->parentCategory), [
+                'name'        => 'Updated Electronics',
+                'description' => 'An updated description.',
+                'is_active'   => '0',
+            ])
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseHas('categories', [
+            'id'          => $this->parentCategory->id,
+            'name'        => 'Updated Electronics',
+            'description' => 'An updated description.',
+            'is_active'   => 0,
+        ]);
+    }
+
+    // ── Update: slug behaviour ─────────────────────────────────────────────────
+
+    public function test_slug_regenerates_when_name_changes(): void
+    {
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.update', $this->parentCategory), [
+                'name'      => 'Completely New Name',
+                'is_active' => '1',
+            ]);
+
+        $this->assertDatabaseHas('categories', [
+            'id'   => $this->parentCategory->id,
+            'slug' => 'completely-new-name',
+        ]);
+    }
+
+    public function test_updating_with_same_name_preserves_slug(): void
+    {
+        // generateSlug('Test Electronics', $id) must not suffix -2 for own record.
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.update', $this->parentCategory), [
+                'name'      => 'Test Electronics',
+                'is_active' => '1',
+            ]);
+
+        $this->assertDatabaseHas('categories', [
+            'id'   => $this->parentCategory->id,
+            'slug' => 'test-electronics',
+        ]);
+    }
+
+    public function test_duplicate_update_name_generates_unique_slug(): void
+    {
+        // A second category already occupies the target slug.
+        Category::create([
+            'name'      => 'Collision Target',
+            'slug'      => 'collision-target',
+            'parent_id' => null,
+            'is_active' => true,
+        ]);
+
+        // Updating parentCategory to the same name should produce -2 suffix.
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.update', $this->parentCategory), [
+                'name'      => 'Collision Target',
+                'is_active' => '1',
+            ]);
+
+        $this->assertDatabaseHas('categories', [
+            'id'   => $this->parentCategory->id,
+            'slug' => 'collision-target-2',
+        ]);
+    }
+
+    // ── Update: validation failures ────────────────────────────────────────────
+
+    public function test_name_is_required_on_update(): void
+    {
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.update', $this->parentCategory), [
+                'name'      => '',
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('name');
+    }
+
+    public function test_invalid_parent_id_fails_validation_on_update(): void
+    {
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.update', $this->parentCategory), [
+                'name'      => 'Valid Name',
+                'parent_id' => 99999,
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('parent_id');
+    }
+
+    public function test_category_cannot_select_itself_as_parent(): void
+    {
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.update', $this->parentCategory), [
+                'name'      => 'Test Electronics',
+                'parent_id' => (string) $this->parentCategory->id,
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('parent_id');
+    }
 }
