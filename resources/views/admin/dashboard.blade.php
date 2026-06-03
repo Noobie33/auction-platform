@@ -37,6 +37,10 @@
             <span class="nav-label">Seller Applications</span>
             <span class="nav-hint">Review pending seller applications and manage approvals.</span>
         </a>
+        <a href="{{ route('admin.categories.index') }}">
+            <span class="nav-label">Category Management</span>
+            <span class="nav-hint">View and manage auction categories and subcategories.</span>
+        </a>
     </nav>
 
     <hr class="divider">

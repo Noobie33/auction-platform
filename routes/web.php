@@ -10,6 +10,7 @@ use App\Http\Controllers\Seller\SellerDashboardController;
 use App\Http\Controllers\Bidder\BidderDashboardController;
 use App\Http\Controllers\Staff\StaffDashboardController;
 use App\Http\Controllers\Profile\ProfileController;
+use App\Http\Controllers\Admin\CategoryController;
 
 
 Route::get('/', function () {
@@ -44,6 +45,10 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
     Route::post('admin/seller-applications/{sellerRequest}/reject', [SellerApplicationManagementController::class, 'reject'])
         ->name('admin.seller-applications.reject')
         ->middleware('role:admin');
+
+    Route::get('/admin/categories', [CategoryController::class, 'index'])
+        ->middleware('role:admin')
+        ->name('admin.categories.index');
 
 
     // ── Seller ────────────────────────────────────────────────────────────────
