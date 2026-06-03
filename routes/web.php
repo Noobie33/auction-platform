@@ -66,6 +66,10 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:admin')
         ->name('admin.categories.update');
 
+    Route::patch('/admin/categories/{category}/status', [CategoryController::class, 'updateStatus'])
+        ->middleware('role:admin')
+        ->name('admin.categories.status.update');
+
 
     // ── Seller ────────────────────────────────────────────────────────────────
     Route::get('/seller/dashboard', SellerDashboardController::class)

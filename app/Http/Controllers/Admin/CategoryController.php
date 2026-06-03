@@ -107,4 +107,30 @@ class CategoryController extends Controller
 
         return redirect()->route('admin.categories.index');
     }
+
+    /**
+     * Toggle the active status of a category.
+     *
+     * Active   → archived (is_active = false).
+     * Inactive → restored (is_active = true).
+     *
+     * $wasActive is captured before update() mutates the model so the
+     * flash message reflects the transition, not the resulting state.
+     */
+    public function updateStatus(Category $category): RedirectResponse
+    {
+        $wasActive = $category->is_active;
+
+        $category->update([
+            'is_active' => ! $wasActive,
+        ]);
+
+        $message = $wasActive
+            ? "'{$category->name}' has been archived."
+            : "'{$category->name}' has been restored.";
+
+        return redirect()
+            ->route('admin.categories.index')
+            ->with('success', $message);
+    }
 }

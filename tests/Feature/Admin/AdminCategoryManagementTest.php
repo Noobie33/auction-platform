@@ -395,4 +395,77 @@ class AdminCategoryManagementTest extends TestCase
             ])
             ->assertSessionHasErrors('parent_id');
     }
+
+    // ── Archive / Restore: access control ─────────────────────────────────────
+
+    public function test_guest_is_redirected_from_status_update(): void
+    {
+        $this->patch(route('admin.categories.status.update', $this->parentCategory))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_non_admin_cannot_update_category_status(): void
+    {
+        $this->actingAs($this->bidder)
+            ->patch(route('admin.categories.status.update', $this->parentCategory))
+            ->assertForbidden();
+    }
+
+    // ── Archive / Restore: toggle behaviour ───────────────────────────────────
+
+    public function test_admin_can_archive_active_category(): void
+    {
+        // parentCategory is active in setUp
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.status.update', $this->parentCategory))
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseHas('categories', [
+            'id'        => $this->parentCategory->id,
+            'is_active' => 0,
+        ]);
+    }
+
+    public function test_admin_can_restore_inactive_category(): void
+    {
+        // inactiveCategory is inactive in setUp
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.status.update', $this->inactiveCategory))
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseHas('categories', [
+            'id'        => $this->inactiveCategory->id,
+            'is_active' => 1,
+        ]);
+    }
+
+    public function test_archive_does_not_delete_category_record(): void
+    {
+        // Verifies that toggling is_active is not a deletion of any kind.
+        $this->actingAs($this->admin)
+            ->patch(route('admin.categories.status.update', $this->parentCategory));
+
+        $this->assertDatabaseHas('categories', [
+            'id'   => $this->parentCategory->id,
+            'name' => 'Test Electronics',
+        ]);
+    }
+
+    // ── Archive / Restore: index view buttons ─────────────────────────────────
+
+    public function test_index_shows_archive_button_for_active_category(): void
+    {
+        // parentCategory is active → Archive button must be visible.
+        $this->actingAs($this->admin)
+            ->get(route('admin.categories.index'))
+            ->assertSee('Archive');
+    }
+
+    public function test_index_shows_restore_button_for_inactive_category(): void
+    {
+        // inactiveCategory is inactive → Restore button must be visible.
+        $this->actingAs($this->admin)
+            ->get(route('admin.categories.index'))
+            ->assertSee('Restore');
+    }
 }
