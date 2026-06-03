@@ -133,4 +133,40 @@ class CategoryController extends Controller
             ->route('admin.categories.index')
             ->with('success', $message);
     }
+
+     /**
+     * Permanently delete a category — application-level guards enforced first.
+     *
+     * Guard 1 — children: listings.category_id uses restrictOnDelete(). A
+     * parent category being deleted would orphan or throw a FK violation on
+     * children rows. Block before any DB call.
+     *
+     * Guard 2 — listings: hasListings() calls withTrashed() because soft-deleted
+     * listings still hold the category_id FK. restrictOnDelete() means the DB
+     * would throw even for trashed listings. Block before any DB call.
+     *
+     * Both guards produce a user-facing error flash and redirect rather than
+     * letting a raw FK exception surface.
+     */
+    public function destroy(Category $category): RedirectResponse
+    {
+        if ($category->children()->exists()) {
+            return redirect()
+                ->route('admin.categories.index')
+                ->with('error', "'{$category->name}' cannot be deleted because it has subcategories. Remove or reassign them first.");
+        }
+
+        if ($category->hasListings()) {
+            return redirect()
+                ->route('admin.categories.index')
+                ->with('error', "'{$category->name}' cannot be deleted because it has associated listings. Archive it instead.");
+        }
+
+        $name = $category->name;
+        $category->delete();
+
+        return redirect()
+            ->route('admin.categories.index')
+            ->with('success', "'{$name}' has been permanently deleted.");
+    }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Category;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AdminCategoryManagementTest extends TestCase
@@ -51,16 +52,41 @@ class AdminCategoryManagementTest extends TestCase
         ]);
     }
 
+    /**
+     * Create an authenticated user with the given role.
+     * status = active ensures check.account.status middleware passes.
+     * email_verified_at = now() ensures the verified middleware passes.
+     */
     private function createUserWithRole(string $role): User
     {
         $user = User::factory()->create([
-            'status' => 'active',
-            'email_verified_at' => now(),
+            'status'             => 'active',
+            'email_verified_at'  => now(),
         ]);
 
         $user->assignRole($role);
 
         return $user;
+    }
+
+    /**
+     * Insert a minimal valid listing row directly via DB to avoid needing
+     * a full ListingFactory. Used only by the listing-guard delete test.
+     * withTrashed() in hasListings() means this row blocks deletion even
+     * without being soft-deleted.
+     */
+    private function createListingForCategory(Category $category): void
+    {
+        DB::table('listings')->insert([
+            'seller_id'      => $this->seller->id,
+            'category_id'    => $category->id,
+            'title'          => 'Test Listing',
+            'slug'           => 'test-listing-' . $category->id,
+            'description'    => 'A minimal listing for deletion guard tests.',
+            'starting_price' => '10.00',
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
     }
 
     // ── Index: access control ──────────────────────────────────────────────────
@@ -326,7 +352,6 @@ class AdminCategoryManagementTest extends TestCase
 
     public function test_updating_with_same_name_preserves_slug(): void
     {
-        // generateSlug('Test Electronics', $id) must not suffix -2 for own record.
         $this->actingAs($this->admin)
             ->patch(route('admin.categories.update', $this->parentCategory), [
                 'name'      => 'Test Electronics',
@@ -341,7 +366,6 @@ class AdminCategoryManagementTest extends TestCase
 
     public function test_duplicate_update_name_generates_unique_slug(): void
     {
-        // A second category already occupies the target slug.
         Category::create([
             'name'      => 'Collision Target',
             'slug'      => 'collision-target',
@@ -349,7 +373,6 @@ class AdminCategoryManagementTest extends TestCase
             'is_active' => true,
         ]);
 
-        // Updating parentCategory to the same name should produce -2 suffix.
         $this->actingAs($this->admin)
             ->patch(route('admin.categories.update', $this->parentCategory), [
                 'name'      => 'Collision Target',
@@ -415,7 +438,6 @@ class AdminCategoryManagementTest extends TestCase
 
     public function test_admin_can_archive_active_category(): void
     {
-        // parentCategory is active in setUp
         $this->actingAs($this->admin)
             ->patch(route('admin.categories.status.update', $this->parentCategory))
             ->assertRedirect(route('admin.categories.index'));
@@ -428,7 +450,6 @@ class AdminCategoryManagementTest extends TestCase
 
     public function test_admin_can_restore_inactive_category(): void
     {
-        // inactiveCategory is inactive in setUp
         $this->actingAs($this->admin)
             ->patch(route('admin.categories.status.update', $this->inactiveCategory))
             ->assertRedirect(route('admin.categories.index'));
@@ -441,7 +462,6 @@ class AdminCategoryManagementTest extends TestCase
 
     public function test_archive_does_not_delete_category_record(): void
     {
-        // Verifies that toggling is_active is not a deletion of any kind.
         $this->actingAs($this->admin)
             ->patch(route('admin.categories.status.update', $this->parentCategory));
 
@@ -455,7 +475,6 @@ class AdminCategoryManagementTest extends TestCase
 
     public function test_index_shows_archive_button_for_active_category(): void
     {
-        // parentCategory is active → Archive button must be visible.
         $this->actingAs($this->admin)
             ->get(route('admin.categories.index'))
             ->assertSee('Archive');
@@ -463,9 +482,95 @@ class AdminCategoryManagementTest extends TestCase
 
     public function test_index_shows_restore_button_for_inactive_category(): void
     {
-        // inactiveCategory is inactive → Restore button must be visible.
         $this->actingAs($this->admin)
             ->get(route('admin.categories.index'))
             ->assertSee('Restore');
+    }
+
+    // ── Delete: access control ─────────────────────────────────────────────────
+
+    public function test_guest_is_redirected_from_delete_route(): void
+    {
+        $this->delete(route('admin.categories.destroy', $this->parentCategory))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_non_admin_cannot_delete_category(): void
+    {
+        $this->actingAs($this->bidder)
+            ->delete(route('admin.categories.destroy', $this->parentCategory))
+            ->assertForbidden();
+    }
+
+    // ── Delete: successful hard delete ────────────────────────────────────────
+
+    public function test_admin_can_delete_category_with_no_listings_and_no_children(): void
+    {
+        // Create an isolated leaf category — no children, no listings.
+        $safeCategory = Category::create([
+            'name'      => 'Safe To Delete',
+            'slug'      => 'safe-to-delete',
+            'parent_id' => null,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->delete(route('admin.categories.destroy', $safeCategory))
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseMissing('categories', ['id' => $safeCategory->id]);
+    }
+
+    // ── Delete: application-level guards ──────────────────────────────────────
+
+    public function test_cannot_delete_category_with_child_categories(): void
+    {
+        // parentCategory has childCategory — children guard must fire.
+        $this->actingAs($this->admin)
+            ->delete(route('admin.categories.destroy', $this->parentCategory))
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseHas('categories', ['id' => $this->parentCategory->id]);
+    }
+
+    public function test_cannot_delete_category_with_listings(): void
+    {
+        // Create a leaf category (no children) then attach a listing to it.
+        // The listings guard must fire before any DB deletion attempt.
+        $leafCategory = Category::create([
+            'name'      => 'Leaf With Listings',
+            'slug'      => 'leaf-with-listings',
+            'parent_id' => null,
+            'is_active' => true,
+        ]);
+
+        $this->createListingForCategory($leafCategory);
+
+        $this->actingAs($this->admin)
+            ->delete(route('admin.categories.destroy', $leafCategory))
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseHas('categories', ['id' => $leafCategory->id]);
+    }
+
+    public function test_blocked_delete_keeps_category_record(): void
+    {
+        // Verifies that a blocked delete (children present) leaves the row intact.
+        $this->actingAs($this->admin)
+            ->delete(route('admin.categories.destroy', $this->parentCategory));
+
+        $this->assertDatabaseHas('categories', [
+            'id'   => $this->parentCategory->id,
+            'name' => 'Test Electronics',
+        ]);
+    }
+
+    // ── Delete: index view button ──────────────────────────────────────────────
+
+    public function test_index_shows_delete_button(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('admin.categories.index'))
+            ->assertSee('Delete');
     }
 }

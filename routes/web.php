@@ -70,6 +70,9 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:admin')
         ->name('admin.categories.status.update');
 
+    Route::delete('/admin/categories/{category}', [CategoryController::class, 'destroy'])
+        ->middleware('role:admin')
+        ->name('admin.categories.destroy');
 
     // ── Seller ────────────────────────────────────────────────────────────────
     Route::get('/seller/dashboard', SellerDashboardController::class)

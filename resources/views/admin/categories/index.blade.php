@@ -19,8 +19,9 @@
         .btn-create      { display: inline-block; background: #1a1a1a; color: #fff; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 600; }
         .btn-create:hover { background: #333; }
 
-        /* Flash message */
+        /* Flash banners */
         .alert-success   { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; }
+        .alert-error     { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; }
 
         .stats           { display: flex; gap: 16px; margin-bottom: 28px; }
         .stat            { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 16px; flex: 1; }
@@ -44,15 +45,17 @@
         .action-link     { font-size: 0.8rem; color: #1a1a1a; text-decoration: none; font-weight: 500; padding: 3px 8px; border: 1px solid #d1d5db; border-radius: 4px; margin-right: 4px; }
         .action-link:hover { background: #f3f4f6; }
 
-        /* Inline forms reset so buttons sit beside the Edit link */
+        /* Inline forms so buttons sit on one line beside the Edit link */
         .action-form     { display: inline; }
 
-        /* Override the global button rule for action buttons only */
-        button.action-btn { font-size: 0.8rem; font-weight: 500; padding: 3px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px; background: #fff; }
+        /* All action buttons share base; each variant overrides colour */
+        button.action-btn         { font-size: 0.8rem; font-weight: 500; padding: 3px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px; background: #fff; }
         button.action-btn-archive { color: #d97706; border: 1px solid #d97706; }
         button.action-btn-archive:hover { background: #fffbeb; }
         button.action-btn-restore { color: #16a34a; border: 1px solid #16a34a; }
         button.action-btn-restore:hover { background: #f0fdf4; }
+        button.action-btn-delete  { color: #dc2626; border: 1px solid #dc2626; }
+        button.action-btn-delete:hover  { background: #fef2f2; }
 
         .empty           { padding: 40px 0; text-align: center; color: #6b7280; }
 
@@ -74,6 +77,10 @@
 
     @if (session('success'))
         <div class="alert-success">{{ session('success') }}</div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert-error">{{ session('error') }}</div>
     @endif
 
     @php
@@ -138,6 +145,16 @@
                                     <button type="submit" class="action-btn action-btn-restore">Restore</button>
                                 @endif
                             </form>
+
+                            <form
+                                method="POST"
+                                action="{{ route('admin.categories.destroy', $category) }}"
+                                class="action-form"
+                            >
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="action-btn action-btn-delete">Delete</button>
+                            </form>
                         </td>
                     </tr>
 
@@ -168,6 +185,16 @@
                                     @else
                                         <button type="submit" class="action-btn action-btn-restore">Restore</button>
                                     @endif
+                                </form>
+
+                                <form
+                                    method="POST"
+                                    action="{{ route('admin.categories.destroy', $child) }}"
+                                    class="action-form"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="action-btn action-btn-delete">Delete</button>
                                 </form>
                             </td>
                         </tr>
