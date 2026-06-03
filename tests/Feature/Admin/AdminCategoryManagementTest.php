@@ -22,8 +22,6 @@ class AdminCategoryManagementTest extends TestCase
     {
         parent::setUp();
 
-        // Seed roles only — CategorySeeder is not needed because tests
-        // create their own categories with known names/slugs.
         $this->seed(\Database\Seeders\RoleSeeder::class);
 
         $this->admin  = $this->createUserWithRole('admin');
@@ -53,10 +51,6 @@ class AdminCategoryManagementTest extends TestCase
         ]);
     }
 
-    // ── Role assignment helper ─────────────────────────────────────────────────
-    // NOTE: uses Spatie assignRole(). If this project uses a different role
-    // system, match the pattern in AdminUserManagementTest.php instead.
-
     private function createUserWithRole(string $role): User
     {
         $user = User::factory()->create([
@@ -69,7 +63,7 @@ class AdminCategoryManagementTest extends TestCase
         return $user;
     }
 
-    // ── Access control ─────────────────────────────────────────────────────────
+    // ── Index: access control ──────────────────────────────────────────────────
 
     public function test_guest_is_redirected_from_category_index(): void
     {
@@ -98,7 +92,7 @@ class AdminCategoryManagementTest extends TestCase
             ->assertForbidden();
     }
 
-    // ── Content: parent category ───────────────────────────────────────────────
+    // ── Index: content ─────────────────────────────────────────────────────────
 
     public function test_category_index_shows_parent_category_name(): void
     {
@@ -114,8 +108,6 @@ class AdminCategoryManagementTest extends TestCase
             ->assertSee('test-electronics');
     }
 
-    // ── Content: child category ────────────────────────────────────────────────
-
     public function test_category_index_shows_child_category_name(): void
     {
         $this->actingAs($this->admin)
@@ -129,8 +121,6 @@ class AdminCategoryManagementTest extends TestCase
             ->get(route('admin.categories.index'))
             ->assertSee('test-mobile-phones');
     }
-
-    // ── Content: status badges ─────────────────────────────────────────────────
 
     public function test_category_index_shows_active_badge(): void
     {
@@ -148,7 +138,6 @@ class AdminCategoryManagementTest extends TestCase
 
     public function test_category_index_shows_inactive_categories(): void
     {
-        // Admin must see inactive categories — they are not filtered out.
         $this->actingAs($this->admin)
             ->get(route('admin.categories.index'))
             ->assertSee('Archived Category');
@@ -161,5 +150,119 @@ class AdminCategoryManagementTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.dashboard'))
             ->assertSee(route('admin.categories.index'));
+    }
+
+    // ── Create: access control ─────────────────────────────────────────────────
+
+    public function test_admin_can_view_create_category_page(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('admin.categories.create'))
+            ->assertOk();
+    }
+
+    public function test_guest_is_redirected_from_create_category_page(): void
+    {
+        $this->get(route('admin.categories.create'))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_non_admin_cannot_view_create_category_page(): void
+    {
+        $this->actingAs($this->bidder)
+            ->get(route('admin.categories.create'))
+            ->assertForbidden();
+    }
+
+    // ── Store: successful creation ─────────────────────────────────────────────
+
+    public function test_admin_can_create_parent_category(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.categories.store'), [
+                'name'        => 'New Parent Category',
+                'description' => 'A top-level test category.',
+                'parent_id'   => null,
+                'is_active'   => '1',
+            ])
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseHas('categories', [
+            'name'      => 'New Parent Category',
+            'parent_id' => null,
+            'is_active' => 1,
+        ]);
+    }
+
+    public function test_admin_can_create_child_category(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.categories.store'), [
+                'name'      => 'New Child Category',
+                'parent_id' => $this->parentCategory->id,
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('admin.categories.index'));
+
+        $this->assertDatabaseHas('categories', [
+            'name'      => 'New Child Category',
+            'parent_id' => $this->parentCategory->id,
+        ]);
+    }
+
+    // ── Store: slug generation ─────────────────────────────────────────────────
+
+    public function test_slug_is_generated_automatically_from_name(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.categories.store'), [
+                'name'      => 'Auto Slug Category',
+                'is_active' => '1',
+            ]);
+
+        $this->assertDatabaseHas('categories', [
+            'slug' => 'auto-slug-category',
+        ]);
+    }
+
+    public function test_duplicate_names_generate_unique_slugs(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.categories.store'), [
+                'name'      => 'Duplicate Name',
+                'is_active' => '1',
+            ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.categories.store'), [
+                'name'      => 'Duplicate Name',
+                'is_active' => '1',
+            ]);
+
+        $this->assertDatabaseHas('categories', ['slug' => 'duplicate-name']);
+        $this->assertDatabaseHas('categories', ['slug' => 'duplicate-name-2']);
+    }
+
+    // ── Store: validation failures ─────────────────────────────────────────────
+
+    public function test_name_is_required_to_create_category(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.categories.store'), [
+                'name'      => '',
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('name');
+    }
+
+    public function test_invalid_parent_id_fails_validation(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.categories.store'), [
+                'name'      => 'Orphan Category',
+                'parent_id' => 99999,
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('parent_id');
     }
 }

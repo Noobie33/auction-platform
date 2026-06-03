@@ -50,6 +50,14 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:admin')
         ->name('admin.categories.index');
 
+    Route::get('/admin/categories/create', [CategoryController::class, 'create'])
+        ->middleware('role:admin')
+        ->name('admin.categories.create');
+
+    Route::post('/admin/categories', [CategoryController::class, 'store'])
+        ->middleware('role:admin')
+        ->name('admin.categories.store');
+
 
     // ── Seller ────────────────────────────────────────────────────────────────
     Route::get('/seller/dashboard', SellerDashboardController::class)

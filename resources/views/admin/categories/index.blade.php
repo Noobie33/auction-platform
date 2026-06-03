@@ -13,8 +13,11 @@
         .badge-active  { background: #16a34a; }
         .badge-inactive{ background: #9ca3af; }
 
-        .back-link     { display: inline-block; margin-bottom: 24px; font-size: 0.875rem; color: #6b7280; text-decoration: none; }
+        .page-header   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+        .back-link     { font-size: 0.875rem; color: #6b7280; text-decoration: none; }
         .back-link:hover { color: #1a1a1a; }
+        .btn-create    { display: inline-block; background: #1a1a1a; color: #fff; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 600; }
+        .btn-create:hover { background: #333; }
 
         .stats         { display: flex; gap: 16px; margin-bottom: 28px; }
         .stat          { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 16px; flex: 1; }
@@ -27,8 +30,8 @@
         tbody tr:hover { background: #f9fafb; }
         td             { padding: 10px 12px; font-size: 0.9rem; vertical-align: middle; }
 
-        .parent-row td         { font-weight: 600; background: #f9fafb; }
-        .child-row td:first-child { padding-left: 30px; color: #4b5563; }
+        .parent-row td          { font-weight: 600; background: #f9fafb; }
+        .child-row td:first-child{ padding-left: 30px; color: #4b5563; }
 
         .slug          { font-family: monospace; font-size: 0.8rem; color: #6b7280; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
         .count         { font-size: 0.85rem; color: #6b7280; }
@@ -45,7 +48,10 @@
     <h1>Category Management</h1>
     <p class="subtitle">All auction categories and subcategories.</p>
 
-    <a class="back-link" href="{{ route('admin.dashboard') }}">← Back to Dashboard</a>
+    <div class="page-header">
+        <a class="back-link" href="{{ route('admin.dashboard') }}">← Back to Dashboard</a>
+        <a class="btn-create" href="{{ route('admin.categories.create') }}">+ Create Category</a>
+    </div>
 
     @php
         $totalCount  = $categories->sum(fn ($c) => 1 + $c->children->count());
@@ -68,7 +74,7 @@
     </div>
 
     @if ($categories->isEmpty())
-        <p class="empty">No categories found.</p>
+        <p class="empty">No categories yet. <a href="{{ route('admin.categories.create') }}">Create the first one.</a></p>
     @else
         <table>
             <thead>
