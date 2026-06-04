@@ -308,4 +308,213 @@ class SellerListingTest extends TestCase
             ]))
             ->assertSessionHasErrors('starting_price');
     }
+
+    // ── Edit: access control ───────────────────────────────────────────────────
+
+    public function test_seller_can_view_edit_page_for_own_draft_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.edit', $listing))
+            ->assertOk();
+    }
+
+    public function test_seller_cannot_view_edit_page_for_another_sellers_listing(): void
+    {
+        $seller      = $this->makeUser('seller');
+        $otherSeller = $this->makeUser('seller');
+        $listing     = $this->createListing($otherSeller);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.edit', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_edit_active_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, ['status' => 'active']);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.edit', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_guest_is_redirected_from_edit_page(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $this->get(route('seller.listings.edit', $listing))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_bidder_cannot_access_edit_page(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $bidder  = $this->makeUser('bidder');
+        $listing = $this->createListing($seller);
+
+        $this->actingAs($bidder)
+            ->get(route('seller.listings.edit', $listing))
+            ->assertForbidden();
+    }
+
+    // ── Update: successful update ──────────────────────────────────────────────
+
+    public function test_seller_can_update_own_draft_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.update', $listing), $this->validListingData([
+                'title'       => 'Updated Listing Title',
+                'description' => 'This is an updated description with enough characters.',
+            ]))
+            ->assertRedirect(route('seller.listings.index'));
+
+        $this->assertDatabaseHas('listings', [
+            'id'    => $listing->id,
+            'title' => 'Updated Listing Title',
+        ]);
+    }
+
+    public function test_update_keeps_listing_owned_by_same_seller(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.update', $listing), $this->validListingData());
+
+        $this->assertDatabaseHas('listings', [
+            'id'        => $listing->id,
+            'seller_id' => $seller->id,
+        ]);
+    }
+
+    // ── Update: slug behaviour ─────────────────────────────────────────────────
+
+    public function test_update_regenerates_slug_when_title_changes(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, ['slug' => 'old-slug']);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.update', $listing), $this->validListingData([
+                'title' => 'Brand New Title Here',
+            ]));
+
+        $this->assertDatabaseHas('listings', [
+            'id'   => $listing->id,
+            'slug' => 'brand-new-title-here',
+        ]);
+    }
+
+    public function test_update_with_duplicate_title_generates_unique_slug_excluding_current(): void
+    {
+        $seller  = $this->makeUser('seller');
+
+        // listing holds 'original-title'
+        $listing = $this->createListing($seller, [
+            'title' => 'Original Title',
+            'slug'  => 'original-title',
+        ]);
+
+        // A second listing already occupies the target slug
+        $this->createListing($seller, [
+            'title' => 'Collision Title',
+            'slug'  => 'collision-title',
+        ]);
+
+        // Updating listing to 'Collision Title' must produce 'collision-title-2',
+        // not 'collision-title'. The excludeId only protects listing's OWN slug
+        // from blocking itself; the collision comes from the other listing.
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.update', $listing), $this->validListingData([
+                'title' => 'Collision Title',
+            ]));
+
+        $this->assertDatabaseHas('listings', [
+            'id'   => $listing->id,
+            'slug' => 'collision-title-2',
+        ]);
+    }
+
+    // ── Update: validation failures ────────────────────────────────────────────
+
+    public function test_title_is_required_on_update(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.update', $listing), $this->validListingData([
+                'title' => '',
+            ]))
+            ->assertSessionHasErrors('title');
+    }
+
+    public function test_inactive_category_cannot_be_used_on_update(): void
+    {
+        $seller   = $this->makeUser('seller');
+        $listing  = $this->createListing($seller);
+        $inactive = Category::create([
+            'name'      => 'Inactive For Update',
+            'slug'      => 'inactive-for-update',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.update', $listing), $this->validListingData([
+                'category_id' => $inactive->id,
+            ]))
+            ->assertSessionHasErrors('category_id');
+    }
+
+    public function test_seller_cannot_update_another_sellers_listing(): void
+    {
+        $seller      = $this->makeUser('seller');
+        $otherSeller = $this->makeUser('seller');
+
+        $listing = $this->createListing($otherSeller, [
+            'title' => 'Protected Other Seller Listing',
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.update', $listing), $this->validListingData([
+                'title' => 'Attempted Hijack Title',
+            ]))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('listings', [
+            'id'    => $listing->id,
+            'title' => 'Protected Other Seller Listing',
+        ]);
+    }
+
+    public function test_seller_cannot_update_active_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'title'  => 'Protected Active Listing',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.update', $listing), $this->validListingData([
+                'title' => 'Attempted Active Update',
+            ]))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('listings', [
+            'id'     => $listing->id,
+            'title'  => 'Protected Active Listing',
+            'status' => 'active',
+        ]);
+    }
 }

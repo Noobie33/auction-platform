@@ -8,6 +8,7 @@ use Illuminate\View\View;
 use App\Http\Requests\Seller\StoreListingRequest;
 use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
+use App\Http\Requests\Seller\UpdateListingRequest;
 
 class ListingController extends Controller
 {
@@ -79,6 +80,72 @@ class ListingController extends Controller
             'ends_at'           => $data['ends_at'] ?? null,
             'auto_extend'       => (bool) ($data['auto_extend'] ?? true),
             'status'            => 'draft',
+        ]);
+
+        return redirect()->route('seller.listings.index');
+    }
+
+    /**
+     * Show the edit form for a draft listing.
+     *
+     * Guard order matters:
+     *   1. isOwnedBy() — prevents seller A seeing seller B's listing.
+     *   2. isDraft()   — prevents editing a published or cancelled listing.
+     *
+     * Both guards run before any data is passed to the view.
+     */
+    public function edit(Listing $listing): View
+    {
+        abort_if(! $listing->isOwnedBy(auth()->user()), 403);
+        abort_if(! $listing->isDraft(), 403);
+
+        $categories = Category::active()
+            ->roots()
+            ->with(['children' => fn ($q) => $q->active()->orderBy('name')])
+            ->orderBy('name')
+            ->get();
+
+        return view('seller.listings.edit', compact('listing', 'categories'));
+    }
+
+    /**
+     * Validate and persist changes to a draft listing.
+     *
+     * The same two guards from edit() are repeated here. Without them a
+     * seller could bypass the UI and PATCH directly to the URL.
+     *
+     * Fields the seller must never control on update:
+     *   seller_id, status, is_featured, view_count, current_bid, winner_id
+     *
+     * Slug is regenerated from the new title. Passing $listing->id to
+     * generateSlug() excludes the current row from the uniqueness check so
+     * updating with an unchanged title preserves the existing slug without
+     * incorrectly appending a -2 suffix.
+     *
+     * min_bid_increment falls back to 10.00 (DB default) when omitted.
+     * auto_extend falls back to current model value when omitted (test PATCH path).
+     */
+    public function update(UpdateListingRequest $request, Listing $listing): RedirectResponse
+    {
+        abort_if(! $listing->isOwnedBy(auth()->user()), 403);
+        abort_if(! $listing->isDraft(), 403);
+
+        $data = $request->validated();
+
+        $listing->update([
+            'category_id'       => $data['category_id'],
+            'title'             => $data['title'],
+            'slug'              => Listing::generateSlug($data['title'], $listing->id),
+            'description'       => $data['description'],
+            'condition'         => $data['condition'],
+            'location'          => $data['location'] ?? null,
+            'starting_price'    => $data['starting_price'],
+            'reserve_price'     => $data['reserve_price'] ?? null,
+            'min_bid_increment' => $data['min_bid_increment'] ?? 10.00,
+            'buy_now_price'     => $data['buy_now_price'] ?? null,
+            'starts_at'         => $data['starts_at'] ?? null,
+            'ends_at'           => $data['ends_at'] ?? null,
+            'auto_extend'       => (bool) ($data['auto_extend'] ?? $listing->auto_extend),
         ]);
 
         return redirect()->route('seller.listings.index');

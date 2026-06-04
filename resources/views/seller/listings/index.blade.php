@@ -41,6 +41,9 @@
         button:hover      { background: #b91c1c; }
         .btn-create      { display: inline-block; background: #16a34a; color: #fff; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 600; }
         .btn-create:hover { background: #15803d; }
+        .actions-cell     { white-space: nowrap; }
+        .action-link      { font-size: 0.8rem; color: #16a34a; text-decoration: none; font-weight: 500; padding: 3px 8px; border: 1px solid #16a34a; border-radius: 4px; }
+        .action-link:hover { background: #f0fdf4; }
     </style>
 </head>
 <body>
@@ -68,6 +71,7 @@
                     <th>Starting Price</th>
                     <th>Current Bid</th>
                     <th>Created</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -94,6 +98,11 @@
                         </td>
                         <td>
                             <span class="text-muted">{{ $listing->created_at->format('d M Y') }}</span>
+                        </td>
+                        <td class="actions-cell">
+                            @if ($listing->isDraft())
+                                <a href="{{ route('seller.listings.edit', $listing) }}" class="action-link">Edit</a>
+                            @endif
                         </td>
                     </tr>
                 @endforeach

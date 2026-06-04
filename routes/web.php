@@ -92,6 +92,14 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:seller')
         ->name('seller.listings.store');
 
+    Route::get('/seller/listings/{listing}/edit', [ListingController::class, 'edit'])
+        ->middleware('role:seller')
+        ->name('seller.listings.edit');
+
+    Route::patch('/seller/listings/{listing}', [ListingController::class, 'update'])
+        ->middleware('role:seller')
+        ->name('seller.listings.update');
+
      // ── Bidder ────────────────────────────────────────────────────────────────
     Route::get('/bidder/dashboard', BidderDashboardController::class)
         ->middleware('role:bidder')
