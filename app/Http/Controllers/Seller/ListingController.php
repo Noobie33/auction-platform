@@ -150,4 +150,86 @@ class ListingController extends Controller
 
         return redirect()->route('seller.listings.index');
     }
+
+    /**
+     * Publish a draft listing, making it live and accepting bids.
+     *
+     * Guard order:
+     *   1. isOwnedBy() — cross-seller protection.
+     *   2. isDraft()   — published/cancelled/ended listings cannot be republished.
+     *
+     * Business rules enforced before the status transition:
+     *   - ends_at must be present.
+     *   - ends_at must be in the future AND after the effective start time.
+     *   - If starts_at is null, it is set to now() at the moment of publishing.
+     *
+     * $effectiveStart uses starts_at when it is set (future-dated auctions),
+     * or falls back to now() for auctions that should begin immediately.
+     * This means a past ends_at always fails the lte() check when starts_at
+     * is null, satisfying the "past ends_at is blocked" requirement.
+     */
+    public function publish(Listing $listing): RedirectResponse
+    {
+        abort_if(! $listing->isOwnedBy(auth()->user()), 403);
+        abort_if(! $listing->isDraft(), 403);
+
+        if (
+            blank($listing->category_id) ||
+            blank($listing->title) ||
+            blank($listing->description) ||
+            blank($listing->condition) ||
+            blank($listing->starting_price)
+        ) {
+            return redirect()
+                ->route('seller.listings.index')
+                ->with('error', "Complete all required listing details before publishing '{$listing->title}'.");
+        }
+
+        if (is_null($listing->ends_at)) {
+            return redirect()
+                ->route('seller.listings.index')
+                ->with('error', "Set an auction end date before publishing '{$listing->title}'.");
+        }
+
+        $effectiveStart = $listing->starts_at ?? now();
+
+        if ($listing->ends_at->isPast() || $listing->ends_at->lte($effectiveStart)) {
+            return redirect()
+                ->route('seller.listings.index')
+                ->with('error', 'Auction end date must be in the future and after the start date.');
+        }
+
+        $listing->update([
+            'status'    => 'active',
+            'starts_at' => $listing->starts_at ?? now(),
+        ]);
+
+        return redirect()
+            ->route('seller.listings.index')
+            ->with('success', "'{$listing->title}' is now live and accepting bids.");
+    }
+
+    /**
+     * Cancel an active listing, ending it early.
+     *
+     * Guard order:
+     *   1. isOwnedBy() — cross-seller protection.
+     *   2. isActive()  — only active listings can be cancelled. Draft listings
+     *      remain editable and are handled differently (deletion in a later unit).
+     *      Cancelled, ended, and failed listings are terminal states.
+     *
+     * No validation form is needed — this is a one-click state transition
+     * guarded at the controller layer, not the form layer.
+     */
+    public function cancel(Listing $listing): RedirectResponse
+    {
+        abort_if(! $listing->isOwnedBy(auth()->user()), 403);
+        abort_if(! $listing->isActive(), 403);
+
+        $listing->update(['status' => 'cancelled']);
+
+        return redirect()
+            ->route('seller.listings.index')
+            ->with('success', "'{$listing->title}' has been cancelled.");
+    }
 }

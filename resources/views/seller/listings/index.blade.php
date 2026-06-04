@@ -44,6 +44,17 @@
         .actions-cell     { white-space: nowrap; }
         .action-link      { font-size: 0.8rem; color: #16a34a; text-decoration: none; font-weight: 500; padding: 3px 8px; border: 1px solid #16a34a; border-radius: 4px; }
         .action-link:hover { background: #f0fdf4; }
+        /* Flash banners */
+        .alert-success    { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; }
+        .alert-error      { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; }
+
+        /* Inline action forms — keeps buttons on one row beside the Edit link */
+        .action-form      { display: inline; }
+        button.action-btn { font-size: 0.8rem; font-weight: 500; padding: 3px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px; background: #fff; }
+        button.action-btn-publish { color: #16a34a; border: 1px solid #16a34a; }
+        button.action-btn-publish:hover { background: #f0fdf4; }
+        button.action-btn-cancel  { color: #dc2626; border: 1px solid #dc2626; }
+        button.action-btn-cancel:hover  { background: #fef2f2; }
     </style>
 </head>
 <body>
@@ -56,6 +67,14 @@
         <a class="back-link" href="{{ route('seller.dashboard') }}">← Back to Dashboard</a>
         <a class="btn-create" href="{{ route('seller.listings.create') }}">+ Create Listing</a>
     </div>
+
+    @if (session('success'))
+        <div class="alert-success">{{ session('success') }}</div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert-error">{{ session('error') }}</div>
+    @endif
 
     @if ($listings->isEmpty())
         <div class="empty">
@@ -102,6 +121,28 @@
                         <td class="actions-cell">
                             @if ($listing->isDraft())
                                 <a href="{{ route('seller.listings.edit', $listing) }}" class="action-link">Edit</a>
+
+                                <form
+                                    method="POST"
+                                    action="{{ route('seller.listings.publish', $listing) }}"
+                                    class="action-form"
+                                >
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="action-btn action-btn-publish">Publish</button>
+                                </form>
+                            @endif
+
+                            @if ($listing->isActive())
+                                <form
+                                    method="POST"
+                                    action="{{ route('seller.listings.cancel', $listing) }}"
+                                    class="action-form"
+                                >
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="action-btn action-btn-cancel">Cancel</button>
+                                </form>
                             @endif
                         </td>
                     </tr>

@@ -100,6 +100,14 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:seller')
         ->name('seller.listings.update');
 
+    Route::patch('/seller/listings/{listing}/publish', [ListingController::class, 'publish'])
+        ->middleware('role:seller')
+        ->name('seller.listings.publish');
+
+    Route::patch('/seller/listings/{listing}/cancel', [ListingController::class, 'cancel'])
+        ->middleware('role:seller')
+        ->name('seller.listings.cancel');
+
      // ── Bidder ────────────────────────────────────────────────────────────────
     Route::get('/bidder/dashboard', BidderDashboardController::class)
         ->middleware('role:bidder')

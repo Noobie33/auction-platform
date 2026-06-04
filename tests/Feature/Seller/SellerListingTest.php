@@ -517,4 +517,319 @@ class SellerListingTest extends TestCase
             'status' => 'active',
         ]);
     }
+
+    // ── Publish: access control ────────────────────────────────────────────────
+
+    public function test_seller_can_publish_own_draft_listing_with_valid_ends_at(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertRedirect(route('seller.listings.index'));
+    }
+
+    public function test_publishing_sets_status_to_active(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing));
+
+        $this->assertDatabaseHas('listings', [
+            'id'     => $listing->id,
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_publishing_sets_starts_at_when_missing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'starts_at' => null,
+            'ends_at'   => now()->addDays(7),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing));
+
+        $this->assertNotNull(Listing::find($listing->id)->starts_at);
+    }
+
+    public function test_seller_cannot_publish_another_sellers_listing(): void
+    {
+        $seller      = $this->makeUser('seller');
+        $otherSeller = $this->makeUser('seller');
+        $listing     = $this->createListing($otherSeller, [
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_publish_active_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status'  => 'active',
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_publish_cancelled_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status'  => 'cancelled',
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_bidder_cannot_publish_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $bidder  = $this->makeUser('bidder');
+        $listing = $this->createListing($seller, [
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($bidder)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_guest_is_redirected_from_publish_route(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->patch(route('seller.listings.publish', $listing))
+            ->assertRedirect(route('login'));
+    }
+
+    // ── Publish: business rule guards ─────────────────────────────────────────
+
+    public function test_publishing_without_ends_at_is_blocked_and_listing_stays_draft(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, ['ends_at' => null]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertRedirect(route('seller.listings.index'));
+
+        $this->assertDatabaseHas('listings', [
+            'id'     => $listing->id,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_publishing_with_past_ends_at_is_blocked_and_listing_stays_draft(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'ends_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertRedirect(route('seller.listings.index'));
+
+        $this->assertDatabaseHas('listings', [
+            'id'     => $listing->id,
+            'status' => 'draft',
+        ]);
+    }
+
+    // ── Cancel: access control ─────────────────────────────────────────────────
+
+    public function test_seller_can_cancel_own_active_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, ['status' => 'active']);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.cancel', $listing))
+            ->assertRedirect(route('seller.listings.index'));
+    }
+
+    public function test_cancelling_sets_status_to_cancelled(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, ['status' => 'active']);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.cancel', $listing));
+
+        $this->assertDatabaseHas('listings', [
+            'id'     => $listing->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
+    public function test_seller_cannot_cancel_another_sellers_listing(): void
+    {
+        $seller      = $this->makeUser('seller');
+        $otherSeller = $this->makeUser('seller');
+        $listing     = $this->createListing($otherSeller, ['status' => 'active']);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.cancel', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_cancel_draft_listing(): void
+    {
+        // Draft listings are not cancellable — isActive() returns false for draft.
+        // Seller should delete a draft rather than cancel it (future unit).
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, ['status' => 'draft']);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.cancel', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_cancel_already_cancelled_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, ['status' => 'cancelled']);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.cancel', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_bidder_cannot_cancel_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $bidder  = $this->makeUser('bidder');
+        $listing = $this->createListing($seller, ['status' => 'active']);
+
+        $this->actingAs($bidder)
+            ->patch(route('seller.listings.cancel', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_guest_is_redirected_from_cancel_route(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, ['status' => 'active']);
+
+        $this->patch(route('seller.listings.cancel', $listing))
+            ->assertRedirect(route('login'));
+    }
+
+    // ── Index: action button visibility ───────────────────────────────────────
+
+    public function test_index_shows_publish_button_for_draft_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+        $this->createListing($seller, ['status' => 'draft']);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.index'))
+            ->assertSee('Publish');
+    }
+
+    public function test_index_shows_edit_link_for_draft_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+        $this->createListing($seller, ['status' => 'draft']);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.index'))
+            ->assertSee('Edit');
+    }
+
+    public function test_index_shows_cancel_button_for_active_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+        $this->createListing($seller, ['status' => 'active']);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.index'))
+            ->assertSee('Cancel');
+    }
+
+    public function test_index_does_not_show_edit_link_for_active_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.index'))
+            ->assertDontSee(route('seller.listings.edit', $listing));
+    }
+
+    public function test_seller_cannot_publish_ended_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status'  => 'ended',
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_publish_failed_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status'  => 'failed',
+            'ends_at' => now()->addDays(7),
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.publish', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_cancel_ended_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, ['status' => 'ended']);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.cancel', $listing))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_cancel_failed_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, ['status' => 'failed']);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.cancel', $listing))
+            ->assertForbidden();
+    }
 }
