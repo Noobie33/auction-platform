@@ -108,6 +108,10 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:seller')
         ->name('seller.listings.cancel');
 
+    Route::delete('/seller/listings/{listing}', [ListingController::class, 'destroy'])
+        ->middleware('role:seller')
+        ->name('seller.listings.destroy');
+
      // ── Bidder ────────────────────────────────────────────────────────────────
     Route::get('/bidder/dashboard', BidderDashboardController::class)
         ->middleware('role:bidder')

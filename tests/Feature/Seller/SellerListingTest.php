@@ -832,4 +832,179 @@ class SellerListingTest extends TestCase
             ->patch(route('seller.listings.cancel', $listing))
             ->assertForbidden();
     }
+
+    // -------------------------------------------------------------------------
+    // Phase 7 · Unit 5 — Draft listing delete
+    // -------------------------------------------------------------------------
+
+    public function test_deleting_draft_listing_soft_deletes_the_record(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($seller)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $this->assertSoftDeleted('listings', [
+            'id' => $listing->id,
+        ]);
+    }
+
+    public function test_guest_is_redirected_from_delete_route(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status' => 'draft',
+        ]);
+
+        $this->delete(route('seller.listings.destroy', $listing))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_seller_can_delete_own_draft_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status' => 'draft',
+            ]);
+
+        $response = $this->actingAs($seller)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $response->assertRedirect(route('seller.listings.index'));
+        $response->assertSessionHas('success');
+    }
+
+
+    public function test_seller_cannot_delete_another_sellers_draft_listing(): void
+    {
+        $seller      = $this->makeUser('seller');
+        $otherSeller = $this->makeUser('seller');
+        $listing     = $this->createListing($otherSeller, [
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAs($seller)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $response->assertForbidden();
+    }
+
+    public function test_seller_cannot_delete_active_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($seller)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $response->assertForbidden();
+    }
+
+    public function test_seller_cannot_delete_cancelled_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status' => 'cancelled',
+        ]);
+
+        $response = $this->actingAs($seller)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $response->assertForbidden();
+    }
+
+    public function test_seller_cannot_delete_ended_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status' => 'ended',
+        ]);
+
+        $response = $this->actingAs($seller)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $response->assertForbidden();
+    }
+
+    public function test_seller_cannot_delete_failed_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status' => 'failed',
+        ]);
+
+        $response = $this->actingAs($seller)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $response->assertForbidden();
+    }
+
+    public function test_bidder_cannot_delete_listing(): void
+    {
+        $bidder  = $this->makeUser('bidder');
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAs($bidder)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $response->assertForbidden();
+    }
+
+    public function test_index_shows_delete_button_for_draft_listing(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller, [
+            'status' => 'draft',
+        ]);
+
+        $response = $this->actingAs($seller)
+            ->get(route('seller.listings.index'));
+
+        $response->assertSee(route('seller.listings.destroy', $listing));
+    }
+
+    public function test_index_does_not_show_delete_button_for_active_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($seller)
+            ->get(route('seller.listings.index'));
+
+        $response->assertDontSee('action="' . route('seller.listings.destroy', $listing) . '"', false);
+    }
+
+    public function test_deleted_listing_no_longer_appears_in_seller_listing_index(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status' => 'draft',
+            'title'  => 'Unique Draft To Delete',
+        ]);
+
+        $this->actingAs($seller)
+            ->delete(route('seller.listings.destroy', $listing));
+
+        $response = $this->actingAs($seller)
+            ->get(route('seller.listings.index'));
+
+        $response->assertSee('You have not created any listings yet.');
+        $response->assertDontSee(route('seller.listings.edit', $listing));
+        $response->assertDontSee(route('seller.listings.publish', $listing));
+        $response->assertDontSee('action="' . route('seller.listings.destroy', $listing) . '"', false);
+    }
 }

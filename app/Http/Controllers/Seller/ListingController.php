@@ -232,4 +232,16 @@ class ListingController extends Controller
             ->route('seller.listings.index')
             ->with('success', "'{$listing->title}' has been cancelled.");
     }
+
+    public function destroy(Listing $listing): RedirectResponse
+    {
+        abort_if(! $listing->isOwnedBy(auth()->user()), 403);
+        abort_if(! $listing->isDraft(), 403);
+
+        $listing->delete();
+
+        return redirect()
+            ->route('seller.listings.index')
+            ->with('success', "'{$listing->title}' draft has been deleted.");
+    }
 }

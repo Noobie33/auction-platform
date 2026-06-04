@@ -55,6 +55,8 @@
         button.action-btn-publish:hover { background: #f0fdf4; }
         button.action-btn-cancel  { color: #dc2626; border: 1px solid #dc2626; }
         button.action-btn-cancel:hover  { background: #fef2f2; }
+        button.action-btn-delete { color: #dc2626; border: 1px solid #dc2626; }
+        button.action-btn-delete:hover { background: #fef2f2; }
     </style>
 </head>
 <body>
@@ -130,6 +132,15 @@
                                     @csrf
                                     @method('PATCH')
                                     <button type="submit" class="action-btn action-btn-publish">Publish</button>
+                                </form>
+                                <form
+                                    method="POST"
+                                    action="{{ route('seller.listings.destroy', $listing) }}"
+                                    class="action-form"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="action-btn action-btn-delete">Delete</button>
                                 </form>
                             @endif
 
