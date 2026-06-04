@@ -39,6 +39,8 @@
         .divider          { border: none; border-top: 1px solid #e5e7eb; margin: 28px 0; }
         button            { background: #dc2626; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
         button:hover      { background: #b91c1c; }
+        .btn-create      { display: inline-block; background: #16a34a; color: #fff; padding: 8px 18px; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 600; }
+        .btn-create:hover { background: #15803d; }
     </style>
 </head>
 <body>
@@ -49,6 +51,7 @@
 
     <div class="page-header">
         <a class="back-link" href="{{ route('seller.dashboard') }}">← Back to Dashboard</a>
+        <a class="btn-create" href="{{ route('seller.listings.create') }}">+ Create Listing</a>
     </div>
 
     @if ($listings->isEmpty())

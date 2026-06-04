@@ -84,6 +84,14 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:seller')
         ->name('seller.listings.index');
 
+    Route::get('/seller/listings/create', [ListingController::class, 'create'])
+        ->middleware('role:seller')
+        ->name('seller.listings.create');
+
+    Route::post('/seller/listings', [ListingController::class, 'store'])
+        ->middleware('role:seller')
+        ->name('seller.listings.store');
+
      // ── Bidder ────────────────────────────────────────────────────────────────
     Route::get('/bidder/dashboard', BidderDashboardController::class)
         ->middleware('role:bidder')

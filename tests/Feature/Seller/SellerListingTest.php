@@ -65,6 +65,21 @@ class SellerListingTest extends TestCase
         ], $overrides));
     }
 
+    /**
+     * Minimum valid POST data for a new listing.
+     * Accepts overrides so individual validation tests can break one field at a time.
+     */
+    private function validListingData(array $overrides = []): array
+    {
+        return array_merge([
+            'category_id'    => $this->category->id,
+            'title'          => 'A Valid Listing Title',
+            'description'    => 'This description is long enough to pass the twenty character minimum.',
+            'condition'      => 'used',
+            'starting_price' => '100.00',
+        ], $overrides);
+    }
+
     // ── Access control ─────────────────────────────────────────────────────────
 
     public function test_guest_is_redirected_from_seller_listings_index(): void
@@ -144,5 +159,153 @@ class SellerListingTest extends TestCase
         $this->actingAs($seller)
             ->get(route('seller.dashboard'))
             ->assertSee(route('seller.listings.index'));
+    }
+
+    // ── Create: access control ─────────────────────────────────────────────────
+
+    public function test_seller_can_view_create_listing_page(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.create'))
+            ->assertOk();
+    }
+
+    public function test_guest_is_redirected_from_create_listing_page(): void
+    {
+        $this->get(route('seller.listings.create'))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_bidder_cannot_view_create_listing_page(): void
+    {
+        $bidder = $this->makeUser('bidder');
+
+        $this->actingAs($bidder)
+            ->get(route('seller.listings.create'))
+            ->assertForbidden();
+    }
+
+    // ── Store: successful creation ─────────────────────────────────────────────
+
+    public function test_seller_can_store_draft_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData())
+            ->assertRedirect(route('seller.listings.index'));
+
+        $this->assertDatabaseHas('listings', [
+            'title'  => 'A Valid Listing Title',
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_stored_listing_belongs_to_authenticated_seller(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData());
+
+        $this->assertDatabaseHas('listings', [
+            'seller_id' => $seller->id,
+            'title'     => 'A Valid Listing Title',
+        ]);
+    }
+
+    // ── Store: slug generation ─────────────────────────────────────────────────
+
+    public function test_slug_is_generated_automatically(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData([
+                'title' => 'My Awesome Camera',
+            ]));
+
+        $this->assertDatabaseHas('listings', [
+            'slug' => 'my-awesome-camera',
+        ]);
+    }
+
+    public function test_duplicate_titles_generate_unique_slugs(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData([
+                'title' => 'Duplicate Listing Title',
+            ]));
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData([
+                'title' => 'Duplicate Listing Title',
+            ]));
+
+        $this->assertDatabaseHas('listings', ['slug' => 'duplicate-listing-title']);
+        $this->assertDatabaseHas('listings', ['slug' => 'duplicate-listing-title-2']);
+    }
+
+    // ── Store: validation failures ─────────────────────────────────────────────
+
+    public function test_title_is_required(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData(['title' => '']))
+            ->assertSessionHasErrors('title');
+    }
+
+    public function test_category_is_required(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData(['category_id' => '']))
+            ->assertSessionHasErrors('category_id');
+    }
+
+    public function test_inactive_category_cannot_be_used(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $inactive = Category::create([
+            'name'      => 'Inactive Category',
+            'slug'      => 'inactive-category',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData([
+                'category_id' => $inactive->id,
+            ]))
+            ->assertSessionHasErrors('category_id');
+    }
+
+    public function test_description_minimum_validation_works(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData([
+                'description' => 'Too short.',
+            ]))
+            ->assertSessionHasErrors('description');
+    }
+
+    public function test_starting_price_is_required(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $this->actingAs($seller)
+            ->post(route('seller.listings.store'), $this->validListingData([
+                'starting_price' => '',
+            ]))
+            ->assertSessionHasErrors('starting_price');
     }
 }
