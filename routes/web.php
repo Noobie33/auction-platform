@@ -12,6 +12,7 @@ use App\Http\Controllers\Staff\StaffDashboardController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Seller\ListingController;
+use App\Http\Controllers\Seller\ListingImageController;
 
 
 Route::get('/', function () {
@@ -121,6 +122,14 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
     Route::get('/staff/dashboard', StaffDashboardController::class)
         ->middleware('role:staff')
         ->name('staff.dashboard');
+
+    Route::post('/seller/listings/{listing}/images', [ListingImageController::class, 'store'])
+        ->middleware('role:seller')
+        ->name('seller.listings.images.store');
+
+    Route::delete('/seller/listings/{listing}/images/{listingImage}', [ListingImageController::class, 'destroy'])
+        ->middleware('role:seller')
+        ->name('seller.listings.images.destroy');
 
     // ── Profile ───────────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

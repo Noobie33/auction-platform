@@ -47,6 +47,15 @@
         .btn-cancel      { display: inline-block; padding: 10px 20px; border: 1px solid #e5e7eb; border-radius: 6px; text-decoration: none; color: #6b7280; font-size: 0.9rem; }
         .btn-cancel:hover { background: #f9fafb; color: #1a1a1a; }
 
+        .image-section   { margin-top: 36px; }
+        .image-grid      { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+        .image-card      { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; }
+        .image-card img  { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; }
+        .primary-badge   { display: inline-block; background: #dcfce7; color: #16a34a; font-size: 0.75rem; padding: 2px 8px; border-radius: 99px; margin-bottom: 6px; }
+        .image-alt       { color: #6b7280; font-size: 0.85rem; margin: 6px 0; }
+        .btn-delete-img  { background: #dc2626; color: #fff; border: none; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        .btn-delete-img:hover { background: #b91c1c; }
+
         .divider         { border: none; border-top: 1px solid #e5e7eb; margin: 36px 0; }
         button.logout    { background: #dc2626; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
         button.logout:hover { background: #b91c1c; }
@@ -322,6 +331,89 @@
         </div>
 
     </form>
+
+        {{-- ── Image Management ───────────────────────────────────────────── --}}
+    <section class="image-section">
+        <p class="section-title">Images</p>
+
+        @if ($listing->images->isNotEmpty())
+            <div class="image-grid">
+                @foreach ($listing->images as $image)
+                    <div class="image-card">
+                        <img
+                            src="{{ asset('storage/' . $image->image_path) }}"
+                            alt="{{ $image->alt_text ?? '' }}"
+                        >
+
+                        @if ($image->is_primary)
+                            <span class="primary-badge">Primary</span>
+                        @endif
+
+                        @if ($image->alt_text)
+                            <p class="image-alt">{{ $image->alt_text }}</p>
+                        @endif
+
+                        <form
+                            method="POST"
+                            action="{{ route('seller.listings.images.destroy', [$listing, $image]) }}"
+                        >
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn-delete-img">Delete image</button>
+                        </form>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <p class="hint">No images uploaded yet.</p>
+        @endif
+
+        <form
+            method="POST"
+            action="{{ route('seller.listings.images.store', $listing) }}"
+            enctype="multipart/form-data"
+            style="margin-top: 24px;"
+        >
+            @csrf
+
+            <div class="form-group">
+                <label for="image">
+                    Upload Image <span class="required-star">*</span>
+                </label>
+                <input
+                    type="file"
+                    id="image"
+                    name="image"
+                    accept="image/jpeg,image/png,image/webp"
+                    class="{{ $errors->has('image') ? 'is-invalid' : '' }}"
+                    required
+                >
+                <p class="hint">JPG, PNG or WebP. Maximum 2 MB.</p>
+                @error('image')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label for="alt_text">Alt Text</label>
+                <input
+                    type="text"
+                    id="alt_text"
+                    name="alt_text"
+                    value="{{ old('alt_text') }}"
+                    maxlength="255"
+                    class="{{ $errors->has('alt_text') ? 'is-invalid' : '' }}"
+                    placeholder="Optional image description"
+                >
+                @error('alt_text')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <button type="submit" class="btn-primary">Upload image</button>
+        </form>
+    </section>
+
 
     <hr class="divider">
 
