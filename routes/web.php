@@ -11,6 +11,8 @@ use App\Http\Controllers\Bidder\BidderDashboardController;
 use App\Http\Controllers\Staff\StaffDashboardController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Seller\ListingController;
+use App\Http\Controllers\Seller\ListingImageController;
 
 
 Route::get('/', function () {
@@ -78,6 +80,38 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
     Route::get('/seller/dashboard', SellerDashboardController::class)
         ->middleware('role:seller')
         ->name('seller.dashboard');
+    
+    Route::get('/seller/listings', [ListingController::class, 'index'])
+        ->middleware('role:seller')
+        ->name('seller.listings.index');
+
+    Route::get('/seller/listings/create', [ListingController::class, 'create'])
+        ->middleware('role:seller')
+        ->name('seller.listings.create');
+
+    Route::post('/seller/listings', [ListingController::class, 'store'])
+        ->middleware('role:seller')
+        ->name('seller.listings.store');
+
+    Route::get('/seller/listings/{listing}/edit', [ListingController::class, 'edit'])
+        ->middleware('role:seller')
+        ->name('seller.listings.edit');
+
+    Route::patch('/seller/listings/{listing}', [ListingController::class, 'update'])
+        ->middleware('role:seller')
+        ->name('seller.listings.update');
+
+    Route::patch('/seller/listings/{listing}/publish', [ListingController::class, 'publish'])
+        ->middleware('role:seller')
+        ->name('seller.listings.publish');
+
+    Route::patch('/seller/listings/{listing}/cancel', [ListingController::class, 'cancel'])
+        ->middleware('role:seller')
+        ->name('seller.listings.cancel');
+
+    Route::delete('/seller/listings/{listing}', [ListingController::class, 'destroy'])
+        ->middleware('role:seller')
+        ->name('seller.listings.destroy');
 
      // ── Bidder ────────────────────────────────────────────────────────────────
     Route::get('/bidder/dashboard', BidderDashboardController::class)
@@ -88,6 +122,22 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
     Route::get('/staff/dashboard', StaffDashboardController::class)
         ->middleware('role:staff')
         ->name('staff.dashboard');
+
+    Route::post('/seller/listings/{listing}/images', [ListingImageController::class, 'store'])
+        ->middleware('role:seller')
+        ->name('seller.listings.images.store');
+
+    Route::delete('/seller/listings/{listing}/images/{listingImage}', [ListingImageController::class, 'destroy'])
+        ->middleware('role:seller')
+        ->name('seller.listings.images.destroy');
+
+    Route::patch('/seller/listings/{listing}/images/sort', [ListingImageController::class, 'sort'])
+        ->middleware('role:seller')
+        ->name('seller.listings.images.sort');
+
+    Route::patch('/seller/listings/{listing}/images/{listingImage}/primary', [ListingImageController::class, 'primary'])
+        ->middleware('role:seller')
+        ->name('seller.listings.images.primary');
 
     // ── Profile ───────────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
