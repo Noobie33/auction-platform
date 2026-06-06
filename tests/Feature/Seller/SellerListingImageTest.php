@@ -743,4 +743,71 @@ class SellerListingImageTest extends TestCase
             ->get(route('seller.listings.edit', $listing))
             ->assertSee(route('seller.listings.images.sort', $listing));
     }
+
+    // ── Unit 6C: image delete hardening ───────────────────────────────────────
+
+    public function test_deleting_primary_image_promotes_next_image_by_sort_order(): void
+    {
+        $seller = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $primary = $this->makeListingImage($listing, [
+            'is_primary' => true,
+            'sort_order' => 0,
+        ]);
+
+        $second = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($seller)
+            ->delete(route('seller.listings.images.destroy', [$listing, $primary]));
+
+        $this->assertDatabaseHas('listing_images', [
+            'id' => $second->id,
+            'is_primary' => true,
+        ]);
+    }
+
+    public function test_deleting_non_primary_image_does_not_change_primary(): void
+    {
+        $seller = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $primary = $this->makeListingImage($listing, [
+            'is_primary' => true,
+            'sort_order' => 0,
+        ]);
+
+        $nonPrimary = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($seller)
+            ->delete(route('seller.listings.images.destroy', [$listing, $nonPrimary]));
+
+        $this->assertDatabaseHas('listing_images', [
+            'id' => $primary->id,
+            'is_primary' => true,
+        ]);
+    }
+
+    public function test_seller_cannot_set_primary_for_image_belonging_to_different_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller);
+        $otherListing = $this->createListing($seller);
+
+        $foreignImage = $this->makeListingImage($otherListing, [
+            'is_primary' => false,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.primary', [$listing, $foreignImage]))
+            ->assertNotFound();
+    }
 }

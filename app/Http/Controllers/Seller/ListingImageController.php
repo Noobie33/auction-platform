@@ -45,10 +45,20 @@ class ListingImageController extends Controller
 
         // Storage::delete is silent if the file is already missing; that is
         // acceptable — the DB record is the source of truth.
+        $wasPrimary = (bool) $listingImage->is_primary;
+
         Storage::disk('public')->delete($listingImage->image_path);
         $listingImage->delete();
 
-        return redirect()->route('seller.listings.edit', $listing)
+        if ($wasPrimary) {
+            $listing->images()
+                ->orderBy('sort_order')
+                ->first()
+                ?->update(['is_primary' => true]);
+        }
+
+        return redirect()
+            ->route('seller.listings.edit', $listing)
             ->with('success', 'Image deleted.');
     }
 
