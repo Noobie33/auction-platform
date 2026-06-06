@@ -8,6 +8,7 @@ use App\Models\Listing;
 use App\Models\ListingImage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 class ListingImageController extends Controller
 {
@@ -49,5 +50,48 @@ class ListingImageController extends Controller
 
         return redirect()->route('seller.listings.edit', $listing)
             ->with('success', 'Image deleted.');
+    }
+
+    public function primary(Listing $listing, ListingImage $listingImage): RedirectResponse
+    {
+        abort_if(! $listing->isOwnedBy(auth()->user()), 403);
+        abort_if(! $listing->isDraft(), 403);
+        abort_if((int) $listingImage->listing_id !== (int) $listing->id, 404);
+
+        $listing->images()->update(['is_primary' => false]);
+
+        $listingImage->update(['is_primary' => true]);
+
+        return redirect()
+            ->route('seller.listings.edit', $listing)
+            ->with('success', 'Primary image updated.');
+    }
+
+    public function sort(Listing $listing, Request $request): RedirectResponse
+    {
+        abort_if(! $listing->isOwnedBy(auth()->user()), 403);
+        abort_if(! $listing->isDraft(), 403);
+
+        $validated = $request->validate([
+            'image_order'   => ['required', 'array'],
+            'image_order.*' => ['integer', 'min:0'],
+        ]);
+
+        $ownedIds = $listing->images()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        foreach ($validated['image_order'] as $imageId => $sortOrder) {
+            if (in_array((int) $imageId, $ownedIds, true)) {
+                ListingImage::where('id', (int) $imageId)
+                    ->where('listing_id', $listing->id)
+                    ->update(['sort_order' => (int) $sortOrder]);
+            }
+        }
+
+        return redirect()
+            ->route('seller.listings.edit', $listing)
+            ->with('success', 'Image order updated.');
     }
 }

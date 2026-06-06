@@ -444,4 +444,303 @@ class SellerListingImageTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    // ── Primary image toggle ──────────────────────────────────────────────────
+
+    public function test_seller_can_set_own_draft_listing_image_as_primary(): void
+    {
+        $seller  = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+        $image   = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.primary', [$listing, $image]))
+            ->assertRedirect(route('seller.listings.edit', $listing))
+            ->assertSessionHas('success');
+    }
+
+    public function test_setting_primary_unsets_previous_primary_image(): void
+    {
+        $seller = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $oldPrimary = $this->makeListingImage($listing, [
+            'is_primary' => true,
+            'sort_order' => 0,
+        ]);
+
+        $newPrimary = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.primary', [$listing, $newPrimary]));
+
+        $this->assertDatabaseHas('listing_images', [
+            'id' => $oldPrimary->id,
+            'is_primary' => false,
+        ]);
+
+        $this->assertDatabaseHas('listing_images', [
+            'id' => $newPrimary->id,
+            'is_primary' => true,
+        ]);
+    }
+
+    public function test_seller_cannot_set_primary_image_from_another_sellers_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+        $otherSeller = $this->makeUser('seller');
+
+        $listing = $this->createListing($otherSeller);
+        $image = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.primary', [$listing, $image]))
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_set_primary_on_active_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status' => 'active',
+        ]);
+
+        $image = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.primary', [$listing, $image]))
+            ->assertForbidden();
+    }
+
+    public function test_bidder_cannot_set_primary(): void
+    {
+        $bidder = $this->makeUser('bidder');
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller);
+        $image = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($bidder)
+            ->patch(route('seller.listings.images.primary', [$listing, $image]))
+            ->assertForbidden();
+    }
+
+    public function test_guest_is_redirected_from_primary_route(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller);
+        $image = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 0,
+        ]);
+
+        $this->patch(route('seller.listings.images.primary', [$listing, $image]))
+            ->assertRedirect(route('login'));
+    }
+
+    // ── Image sort order ──────────────────────────────────────────────────────
+
+    public function test_seller_can_update_image_sort_order_for_own_draft_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $image1 = $this->makeListingImage($listing, [
+            'is_primary' => true,
+            'sort_order' => 0,
+        ]);
+
+        $image2 = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.sort', $listing), [
+                'image_order' => [
+                    $image1->id => 1,
+                    $image2->id => 0,
+                ],
+            ])
+            ->assertRedirect(route('seller.listings.edit', $listing))
+            ->assertSessionHas('success');
+    }
+
+    public function test_sort_order_updates_only_images_belonging_to_the_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+        $otherSeller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller);
+        $otherListing = $this->createListing($otherSeller);
+
+        $ownImage = $this->makeListingImage($listing, [
+            'sort_order' => 0,
+        ]);
+
+        $foreignImage = $this->makeListingImage($otherListing, [
+            'sort_order' => 99,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.sort', $listing), [
+                'image_order' => [
+                    $ownImage->id => 5,
+                    $foreignImage->id => 0,
+                ],
+            ]);
+
+        $this->assertDatabaseHas('listing_images', [
+            'id' => $ownImage->id,
+            'sort_order' => 5,
+        ]);
+
+        $this->assertDatabaseHas('listing_images', [
+            'id' => $foreignImage->id,
+            'sort_order' => 99,
+        ]);
+    }
+
+    public function test_seller_cannot_sort_images_on_another_sellers_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+        $otherSeller = $this->makeUser('seller');
+
+        $listing = $this->createListing($otherSeller);
+        $image = $this->makeListingImage($listing, [
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.sort', $listing), [
+                'image_order' => [
+                    $image->id => 1,
+                ],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_seller_cannot_sort_images_on_active_listing(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller, [
+            'status' => 'active',
+        ]);
+
+        $image = $this->makeListingImage($listing, [
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($seller)
+            ->patch(route('seller.listings.images.sort', $listing), [
+                'image_order' => [
+                    $image->id => 1,
+                ],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_bidder_cannot_sort_images(): void
+    {
+        $bidder = $this->makeUser('bidder');
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller);
+        $image = $this->makeListingImage($listing, [
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($bidder)
+            ->patch(route('seller.listings.images.sort', $listing), [
+                'image_order' => [
+                    $image->id => 1,
+                ],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_guest_is_redirected_from_sort_route(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $listing = $this->createListing($seller);
+        $image = $this->makeListingImage($listing, [
+            'sort_order' => 0,
+        ]);
+
+        $this->patch(route('seller.listings.images.sort', $listing), [
+            'image_order' => [
+                $image->id => 1,
+            ],
+        ])
+            ->assertRedirect(route('login'));
+    }
+
+    // ── Image management view tests ───────────────────────────────────────────
+
+    public function test_edit_page_shows_set_primary_form_for_non_primary_image(): void
+    {
+        $seller = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $nonPrimary = $this->makeListingImage($listing, [
+            'is_primary' => false,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.edit', $listing))
+            ->assertSee(route('seller.listings.images.primary', [$listing, $nonPrimary]));
+    }
+
+    public function test_edit_page_does_not_show_set_primary_form_for_already_primary_image(): void
+    {
+        $seller = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $primaryImage = $this->makeListingImage($listing, [
+            'is_primary' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.edit', $listing))
+            ->assertDontSee(route('seller.listings.images.primary', [$listing, $primaryImage]));
+    }
+
+    public function test_edit_page_shows_sort_order_form_input(): void
+    {
+        $seller = $this->makeUser('seller');
+        $listing = $this->createListing($seller);
+
+        $this->makeListingImage($listing, [
+            'sort_order' => 0,
+        ]);
+
+        $this->makeListingImage($listing, [
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($seller)
+            ->get(route('seller.listings.edit', $listing))
+            ->assertSee(route('seller.listings.images.sort', $listing));
+    }
 }

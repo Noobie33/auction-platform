@@ -338,7 +338,7 @@
 
         @if ($listing->images->isNotEmpty())
             <div class="image-grid">
-                @foreach ($listing->images as $image)
+                @foreach ($listing->images->sortBy('sort_order') as $image)
                     <div class="image-card">
                         <img
                             src="{{ asset('storage/' . $image->image_path) }}"
@@ -361,11 +361,56 @@
                             @method('DELETE')
                             <button type="submit" class="btn-delete-img">Delete image</button>
                         </form>
+                        @if (! $image->is_primary)
+                            <form
+                                method="POST"
+                                action="{{ route('seller.listings.images.primary', [$listing, $image]) }}"
+                                style="margin-top: 6px;"
+                            >
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="btn-primary">Set as Primary</button>
+                            </form>
+                        @endif
+                        
                     </div>
                 @endforeach
             </div>
         @else
             <p class="hint">No images uploaded yet.</p>
+        @endif
+
+        @if ($listing->images->isNotEmpty())
+            <form
+                method="POST"
+                action="{{ route('seller.listings.images.sort', $listing) }}"
+                style="margin-top: 24px;"
+            >
+                @csrf
+                @method('PATCH')
+
+                <p class="hint">Display order: lower number appears first.</p>
+
+                @foreach ($listing->images->sortBy('sort_order') as $image)
+                    <div class="form-group">
+                        <label for="image_order_{{ $image->id }}">
+                            {{ $image->alt_text ?: 'Image #' . $image->id }}
+                            @if ($image->is_primary)
+                                <span class="primary-badge">Primary</span>
+                            @endif
+                        </label>
+                        <input
+                            type="number"
+                            id="image_order_{{ $image->id }}"
+                            name="image_order[{{ $image->id }}]"
+                            value="{{ $image->sort_order }}"
+                            min="0"
+                        >
+                    </div>
+                @endforeach
+
+                <button type="submit" class="btn-primary">Update image order</button>
+            </form>
         @endif
 
         <form

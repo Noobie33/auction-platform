@@ -131,6 +131,14 @@ Route::middleware(['auth', 'check.account.status', 'verified'])->group(function 
         ->middleware('role:seller')
         ->name('seller.listings.images.destroy');
 
+    Route::patch('/seller/listings/{listing}/images/sort', [ListingImageController::class, 'sort'])
+        ->middleware('role:seller')
+        ->name('seller.listings.images.sort');
+
+    Route::patch('/seller/listings/{listing}/images/{listingImage}/primary', [ListingImageController::class, 'primary'])
+        ->middleware('role:seller')
+        ->name('seller.listings.images.primary');
+
     // ── Profile ───────────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
