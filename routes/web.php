@@ -13,11 +13,16 @@ use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Seller\ListingController;
 use App\Http\Controllers\Seller\ListingImageController;
+use App\Http\Controllers\AuctionController;
 
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+// ── Public Auction Browse ─────────────────────────────────────────────────
+// No auth middleware — accessible to guests and all authenticated users.
+Route::get('/auctions', [AuctionController::class, 'index'])->name('auctions.index');
 
 Route::middleware(['auth', 'check.account.status', 'verified'])->group(function () {
 
