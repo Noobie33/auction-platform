@@ -40,6 +40,15 @@
         .nav-links { font-size: 0.875rem; }
         .nav-links a { color: #2563eb; text-decoration: none; }
         .nav-links a:hover { text-decoration: underline; }
+                .filter-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 32px; }
+        .filter-form input[type="text"] { flex: 1; min-width: 180px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem; color: #1a1a1a; }
+        .filter-form select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem; color: #1a1a1a; background: #fff; cursor: pointer; }
+        .filter-form button { padding: 8px 20px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 0.875rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .filter-form button:hover { background: #1d4ed8; }
+        .filter-clear { font-size: 0.8rem; color: #6b7280; text-decoration: none; white-space: nowrap; }
+        .filter-clear:hover { color: #374151; text-decoration: underline; }
+        .empty a { color: #2563eb; text-decoration: none; }
+        .empty a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -47,11 +56,39 @@
     <span class="badge">Live Auctions</span>
     <h1>Browse Auctions</h1>
     <p class="subtitle">Discover active listings ending soon.</p>
+        <form method="GET" action="{{ route('auctions.index') }}" class="filter-form">
+        <input
+            type="text"
+            name="q"
+            value="{{ $search }}"
+            placeholder="Search listings..."
+        >
 
-    @if ($listings->isEmpty())
+        <select name="category">
+            <option value="">All Categories</option>
+            @foreach ($categories as $cat)
+                <option value="{{ $cat->id }}" @selected($categoryId == $cat->id)>
+                    {{ $cat->name }}
+                </option>
+            @endforeach
+        </select>
+
+        <button type="submit">Search</button>
+
+        @if ($search !== '' || $categoryId > 0)
+            <a href="{{ route('auctions.index') }}" class="filter-clear">Clear filters</a>
+        @endif
+    </form>
+
+        @if ($listings->isEmpty())
         <div class="empty">
-            <h2>No active auctions right now.</h2>
-            <p>Check back soon — new listings are added regularly.</p>
+            @if ($search !== '' || $categoryId > 0)
+                <h2>No listings match your search.</h2>
+                <p>Try different keywords or <a href="{{ route('auctions.index') }}">browse all auctions</a>.</p>
+            @else
+                <h2>No active auctions right now.</h2>
+                <p>Check back soon — new listings are added regularly.</p>
+            @endif
         </div>
     @else
         <div class="card-grid">

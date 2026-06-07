@@ -270,4 +270,201 @@ class AuctionBrowseTest extends TestCase
 
         $response->assertSee('No active auctions');
     }
+
+    public function test_keyword_search_matches_listing_title(): void
+    {
+        $seller = $this->makeUser('seller');
+        $category = $this->makeCategory();
+
+        $listing = $this->makeListing($seller, $category, [
+            'title' => 'Vintage Mechanical Watch',
+        ]);
+
+        $response = $this->get(route('auctions.index', [
+            'q' => 'Mechanical',
+        ]));
+
+        $response->assertSee($listing->title);
+    }
+
+    public function test_keyword_search_matches_listing_description(): void
+    {
+        $seller = $this->makeUser('seller');
+        $category = $this->makeCategory();
+
+        $listing = $this->makeListing($seller, $category, [
+            'title' => 'Rare Collectible Item',
+            'description' => 'A unique handcrafted wooden sculpture.',
+        ]);
+
+        $response = $this->get(route('auctions.index', [
+            'q' => 'handcrafted',
+        ]));
+
+        $response->assertSee($listing->title);
+    }
+
+    public function test_keyword_search_hides_non_matching_active_listings(): void
+    {
+        $seller = $this->makeUser('seller');
+        $category = $this->makeCategory();
+
+        $matching = $this->makeListing($seller, $category, [
+            'title' => 'Red Vintage Bicycle',
+        ]);
+
+        $nonMatching = $this->makeListing($seller, $category, [
+            'title' => 'Blue Modern Laptop',
+        ]);
+
+        $response = $this->get(route('auctions.index', [
+            'q' => 'Vintage',
+        ]));
+
+        $response->assertSee($matching->title);
+        $response->assertDontSee($nonMatching->title);
+    }
+
+    public function test_keyword_search_with_no_match_shows_empty_state(): void
+    {
+        $seller = $this->makeUser('seller');
+        $category = $this->makeCategory();
+
+        $this->makeListing($seller, $category, [
+            'title' => 'Common Auction Item',
+        ]);
+
+        $response = $this->get(route('auctions.index', [
+            'q' => 'xyznonexistentkeywordZZZ',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('No listings match your search');
+    }
+
+    public function test_category_filter_shows_listings_from_selected_active_category(): void
+    {
+        $seller = $this->makeUser('seller');
+        $category = $this->makeCategory('Selected Category');
+
+        $listing = $this->makeListing($seller, $category, [
+            'title' => 'Selected Category Auction',
+        ]);
+
+        $response = $this->get(route('auctions.index', [
+            'category' => $category->id,
+        ]));
+
+        $response->assertSee($listing->title);
+    }
+
+    public function test_category_filter_hides_listings_from_other_categories(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $categoryA = $this->makeCategory('Category A');
+        $categoryB = $this->makeCategory('Category B');
+
+        $listingA = $this->makeListing($seller, $categoryA, [
+            'title' => 'Category A Item',
+        ]);
+
+        $listingB = $this->makeListing($seller, $categoryB, [
+            'title' => 'Category B Item',
+        ]);
+
+        $response = $this->get(route('auctions.index', [
+            'category' => $categoryA->id,
+        ]));
+
+        $response->assertSee($listingA->title);
+        $response->assertDontSee($listingB->title);
+    }
+
+    public function test_category_dropdown_shows_active_categories(): void
+    {
+        $category = $this->makeCategory('Visible Active Category');
+
+        $response = $this->get(route('auctions.index'));
+
+        $response->assertSee($category->name);
+    }
+
+    public function test_category_dropdown_does_not_show_inactive_categories(): void
+    {
+        $inactive = Category::create([
+            'name' => 'InactiveCategoryXQ9',
+            'slug' => Category::generateSlug('InactiveCategoryXQ9'),
+            'description' => 'Inactive category should not appear in public filter.',
+            'parent_id' => null,
+            'is_active' => false,
+        ]);
+
+        $response = $this->get(route('auctions.index'));
+
+        $response->assertDontSee($inactive->name);
+    }
+
+    public function test_invalid_category_filter_does_not_error_and_shows_empty_state(): void
+    {
+        $response = $this->get(route('auctions.index', [
+            'category' => 99999,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('No listings match your search');
+    }
+
+    public function test_search_and_category_filter_can_work_together(): void
+    {
+        $seller = $this->makeUser('seller');
+
+        $categoryA = $this->makeCategory('Instrument Category');
+        $categoryB = $this->makeCategory('Audio Category');
+
+        $match = $this->makeListing($seller, $categoryA, [
+            'title' => 'Vintage Guitar',
+        ]);
+
+        $wrongCategory = $this->makeListing($seller, $categoryB, [
+            'title' => 'Guitar Amplifier',
+        ]);
+
+        $wrongKeyword = $this->makeListing($seller, $categoryA, [
+            'title' => 'Piano Keys',
+            'description' => 'Classic keyboard instrument.',
+        ]);
+
+        $response = $this->get(route('auctions.index', [
+            'q' => 'guitar',
+            'category' => $categoryA->id,
+        ]));
+
+        $response->assertSee($match->title);
+        $response->assertDontSee($wrongCategory->title);
+        $response->assertDontSee($wrongKeyword->title);
+    }
+
+    public function test_pagination_keeps_query_string_across_pages(): void
+    {
+        $seller = $this->makeUser('seller');
+        $category = $this->makeCategory('Widget Category');
+
+        for ($i = 1; $i <= 13; $i++) {
+            $this->makeListing($seller, $category, [
+                'title' => 'Widget Item ' . $i,
+                'ends_at' => now()->addDays($i),
+            ]);
+        }
+
+        $response = $this->get(route('auctions.index', [
+            'q' => 'widget',
+            'category' => $category->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('page=2');
+        $response->assertSee('q=widget');
+        $response->assertSee('category=' . $category->id);
+    }
 }
